@@ -8,7 +8,7 @@ scratchfile=_tmp001.txt
 logfile=_tmplog.txt
 tc001=1 
 
-
+cmdexit=cmdexit
 cmdquit=cmdquit
 cmdlist=cmdlist
 cmdclear=cmdclear
@@ -37,7 +37,7 @@ while [ $tc001 ];
 do
 
 	 read -p '>>>: ' codeline
-	 if [[ $cmdquit == $codeline ]];
+	 if [[ $cmdquit == $codeline || $cmdexit == $codeline ]];
 	 then 
 		echo "received $cmdquit"
 		tc001=0
