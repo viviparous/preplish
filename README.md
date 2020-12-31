@@ -2,17 +2,36 @@
 
 Perl REPL in Shell: a simple REPL for Perl 5 written in Bash. 
 
-It does not have sophisticated features, but you may find it useful as well as easy to understand and extend. ^_^
+You may find it useful as well as easy to understand. It's Bash. ^_^
 
-= = =
+Features:
 
-If you don't find it adequate, there are alternatives.
+= you can start the REPL and add valid Perl statements line-by-line
+
+= a new subroutine must be on entirely on a single line
+
+= the code is checked (perl -I . -c $file) after every statement
+
+= you can import an existing Perl file, ls dir, grep $somefile for "sub" and "package"
+
+= list valid REPL commands, command history, and list the current code 
+
+Planned features:
+
+= if Perldoc is detected, you can search (Perldoc is a separate installation, of course)
+
+= add new multi-line subroutine
+
+= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
+= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
+
+If you don't find Preplish adequate, there are alternatives.
 
 Some Perl folks use the Perl debugger:
 
 perl -de 0
 
-If you need more features, this one is a good start:
+If you need more features, this Perl REPL is a good alternative:
 
 https://metacpan.org/pod/Reply
 
