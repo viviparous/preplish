@@ -18,9 +18,9 @@ Features:
 
 = on exit, the code is saved to a file named using a date-stamp
 
-Planned features:
-
 = if Perldoc is detected, you can search (Perldoc is a separate installation, of course)
+
+Planned features:
 
 = add new multi-line subroutine
 

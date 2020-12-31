@@ -1,5 +1,8 @@
 #! /usr/bin/bash
 
+#TODO:  multiline subroutine 
+
+
 dts=$(date +"%Y.%m.%d_%H%M")
 fstem=_tmp.pl
 tmpfile=$dts$fstem
@@ -40,14 +43,18 @@ dcmdhelp[cmdpdocq]="cmdpdocq "
 dcmdhelp[cmdpdocf]="cmdpdocf "
 
 
-
 function showhelp () {
- echo -n "// "
+ declare -a acmds
+
  for i in ${!dcmdhelp[@]}; do
-  echo -n " ${dcmdhelp[$i]} "
+  #echo -n " ${dcmdhelp[$i]} "
+  acmds+=(${dcmdhelp[$i]})
  done
- echo -n " //"
+
+ teststr=$(echo ${acmds[@]} | sed 's/ /\n/g' | sort -h | awk '{for(i=1;i<=NF;i++){ printf "%s ",$i }}' )
+ echo "// $teststr //"
  echo " "
+
 }
 
 
@@ -137,6 +144,25 @@ do
 		
 		continue
 
+	elif [[ $codeline =~ ${dcmdhelp[cmdpdocf]} || $codeline =~ ${dcmdhelp[cmdpdocq]} ]];
+	 then
+		cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $bPerldoc -eq 1 && $cntParams -eq 2 ]]; 
+		then
+		 srchstr=$(echo $codeline | awk '{print $2}')
+   		 echo "received perldoc cmd $codeline"
+
+		 if [[ $codeline =~ ${dcmdhelp[cmdpdocf]} ]] ; 
+		 then
+			perldoc -Ti -f $srchstr
+		 elif [[ $codeline =~ ${dcmdhelp[cmdpdocq]} ]] ;
+		 then
+			perldoc -Ti -q $srchstr
+		 
+		 fi
+		fi
+		continue
+		
 		
 	elif [[ ${dcmdhelp[cmdclear]} == $codeline ]];
 	 then
