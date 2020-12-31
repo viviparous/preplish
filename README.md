@@ -16,6 +16,8 @@ Features:
 
 = list valid REPL commands, command history, and list the current code 
 
+= on exit, the code is saved to a file named using a date-stamp
+
 Planned features:
 
 = if Perldoc is detected, you can search (Perldoc is a separate installation, of course)
@@ -25,7 +27,7 @@ Planned features:
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 
-If you don't find Preplish adequate, there are alternatives.
+If Preplish doesn't meet your needs, there are alternatives.
 
 Some Perl folks use the Perl debugger:
 
