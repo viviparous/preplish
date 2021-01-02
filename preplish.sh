@@ -24,23 +24,28 @@ fi
 
 declare -a cmdhistory
 
+#cmd verbs
 declare -A dcmdhelp
 
-dcmdhelp[cmdhelp]=cmdhelp
-dcmdhelp[cmdexit]=cmdexit
-dcmdhelp[cmdquit]=cmdquit
-dcmdhelp[cmdlist]=cmdlist
-dcmdhelp[cmdlsdir]=cmdlsdir
-dcmdhelp[cmdimport]="cmdimport "
-dcmdhelp[cmdlsmods]=cmdlsmods
-dcmdhelp[cmdlsmodsgrep]=cmdlsmodsgrep
-dcmdhelp[cmdshowc]=cmdshowc
-dcmdhelp[cmdcatf]="cmdcatf "
-dcmdhelp[cmdcatsub]="cmdcatsub "
-dcmdhelp[cmdcatpkg]="cmdcatpkg "
-dcmdhelp[cmdclear]=cmdclear
-dcmdhelp[cmdpdocq]="cmdpdocq "
-dcmdhelp[cmdpdocf]="cmdpdocf "
+dcmdhelp[cmdhelp]=cmdhelp 				#show all REPL cmds
+dcmdhelp[cmdexit]=cmdexit				#exit,quit
+dcmdhelp[cmdquit]=cmdquit				#exit,quit
+dcmdhelp[cmdlist]=cmdlist				#show input history
+dcmdhelp[cmdlsdir]=cmdlsdir				#ls dir
+dcmdhelp[cmdimport]="cmdimport "		#import a file
+dcmdhelp[cmdlsmods]=cmdlsmods			#cpan list installed
+dcmdhelp[cmdlsmodsgrep]=cmdlsmodsgrep	#cpan list | grep str
+dcmdhelp[cmdshowc]=cmdshowc				#list current code
+dcmdhelp[cmdcatf]="cmdcatf "			#cat named file
+dcmdhelp[cmdcatsub]="cmdcatsub "		#search subroutine names in a perl file
+dcmdhelp[cmdcatpkg]="cmdcatpkg "		#search package names in a perl file 
+dcmdhelp[cmdclear]=cmdclear				#clear all code
+dcmdhelp[cmdpdocq]="cmdpdocq "			#perldoc query FAQs
+dcmdhelp[cmdpdocf]="cmdpdocf "			#perldoc query functions
+
+#modes for input
+declare -A dcntrlMode
+
 
 
 function showhelp () {
@@ -177,11 +182,20 @@ do
 	 then
 		cpan -l
 		continue
-
+	elif [[ $codeline =~ ${dcmdhelp[cmdlsmodsgrep]} ]];
+	 then
+		echo "received lsmodsgrep cmd $codeline"
+		cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $cntParams -eq 2 ]]; 
+		then
+			gstr=$(echo $codeline | awk '{print $2}')
+			cpan -l | grep -i $gstr 
+		fi
+		continue		
+		
 	elif [[ $codeline =~ ${dcmdhelp[cmdimport]} ]];
 	 then
 		echo "received import cmd $codeline"
-		
 		fname=$(echo $codeline | awk '{print $2}')
 		if [[ -e $fname ]]; 
 		then 
