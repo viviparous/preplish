@@ -8,9 +8,9 @@ Features:
 
 = you can start the REPL and add valid Perl statements line-by-line
 
-= a new subroutine must be on entirely on a single line
+= a new subroutine can be on entirely on a single line or multi-line; if multi-line, close the subroutine scope with "}##"
 
-= the code is checked (perl -I . -c $file) after every statement
+= the code is checked (perl -I . -c $file) after every statement (subroutines and loops must be completed before they are checked)
 
 = you can import an existing Perl file, ls dir, grep $somefile for "sub" and "package"
 
@@ -18,11 +18,13 @@ Features:
 
 = on exit, the code is saved to a file named using a date-stamp
 
-= if Perldoc is detected, you can search (Perldoc is a separate installation, of course)
+= if Perldoc is detected, you can search (Perldoc is a separate installation)
 
 Planned features:
 
-= add new multi-line subroutine
+= run current code with parameters
+
+= CRUD functions for checkpoint files
 
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
