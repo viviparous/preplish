@@ -364,7 +364,7 @@ do
 		 srchstr=$(echo $codeline | awk '{print $2}')
    		 echo "received cmdhelpcmd $codeline"
 
-		 docu=$(head -n 60 $0 | grep "\[$srchstr\]" | awk -F'#' '{print $2}') 
+		 docu=$(head -n 100 $0 | grep "\[$srchstr\]" | awk -F'#' '{print $2}') 
 		 echo "$srchstr -- $docu"
 		else
 		 echo "error in $codeline"
