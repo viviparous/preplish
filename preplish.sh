@@ -3,7 +3,6 @@
 #TODO:  
 #use bash to manage args
 #remove temp files and dump non-zero length files to a "dump"
-#load line from cmd history ;; 
 #create modes: mode1=coding; mode2=querying
 #kvpargs ;; dynamic object, add methods
 #import lines (not whole file) from scratchfile or from cmdhistory

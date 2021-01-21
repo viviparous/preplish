@@ -4,27 +4,40 @@ Perl REPL in Shell: a simple REPL for Perl 5 written in Bash.
 
 You may find it useful as well as easy to understand. It's Bash. ^_^
 
+Project Status: Active
+
 Features:
 
 = you can start the REPL and add valid Perl statements line-by-line
 
-= a new subroutine can be on entirely on a single line or multi-line; if multi-line, close the subroutine scope with "}##"
+= a new subroutine or for loop can be on entirely on a single line or multi-line; if multi-line, close the scope with "}##"
+
+= run current code with parameters (must be handled as @ARGV)
+
+= run a specific function with or without parameters
 
 = the code is checked (perl -I . -c $file) after every statement (subroutines and loops must be completed before they are checked)
 
-= you can import an existing Perl file, ls dir, grep $somefile for "sub" and "package"
+= you can import an existing Perl file (see the sample template)
+
+= ls dir, grep $somefile for "sub" and "package"
 
 = list valid REPL commands, command history, and list the current code 
 
+= create checkpoint files
+
 = on exit, the code is saved to a file named using a date-stamp
 
-= if Perldoc is detected, you can search (Perldoc is a separate installation)
+= if perldoc is detected, you can search (Perldoc is a separate installation)
 
-Planned features:
+= if perltidy is detected, it is used to improve the display of code 
 
-= run current code with parameters
+Known Problems and Planned Features:
 
-= CRUD functions for checkpoint files
+= fix some use-cases for ARGV (WIP)
+
+= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
+= = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 
 Inspiration for this project
 
