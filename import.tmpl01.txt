@@ -1,0 +1,18 @@
+#! /usr/bin/perl
+use strict;
+use warnings;
+use feature 'say';
+use Scalar::Util qw(looks_like_number);
+
+=pod
+PREPLISH template file. 
+Import and use. Make your own!
+=cut
+
+# list args
+if (scalar(@ARGV)==0){ say __LINE__." No args received."; }
+else { say __LINE__." Received args: ". join(" ;; ", @ARGV); } 
+
+#some subroutines
+sub doMsgArf { my $arf=shift; my @ary=@$arf; say "[$ary[0]] ". join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
+sub doArgTest01 { my @ary=@_; unshift @ary, __LINE__; unshift @ary, "doArgTest01"; doMsgArf(\@ary);}

@@ -1,11 +1,12 @@
 #! /usr/bin/bash
 
 #TODO:  
-#pass parameters and re-execute ;; load line from cmd history ;; 
-#create checkpoint; list checkpoints
-#kvpargs without hyphens ;; dynamic object, add methods
-#prune line from existing file
-#import lines from scratchfile or from cmdhistory
+#use bash to manage args
+#remove temp files and dump non-zero length files to a "dump"
+#load line from cmd history ;; 
+#create modes: mode1=coding; mode2=querying
+#kvpargs ;; dynamic object, add methods
+#import lines (not whole file) from scratchfile or from cmdhistory
 #if subrfile is empty, rm 
 
 #https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -24,6 +25,9 @@ subrfile=$tmpfile$subrfilesffx
 touch $subrfile
 chkpval=0
 tc001=1 
+
+declare -a aTmpFiles
+aTmpFiles+=($scratchfile)
 
  
 declare -a aAppMsgs
@@ -59,6 +63,8 @@ dcmdhelp[cmdquit]=cmdquit				#exit,quit
 dcmdhelp[cmdlist]=cmdlist				#show input history
 dcmdhelp[cmdlsdir]=cmdlsdir				#ls dir
 dcmdhelp[cmdimport]="cmdimport "		#import a file
+dcmdhelp[cmdrunfwargs]="cmdrunfwargs "		#run a specific function with arguments
+dcmdhelp[cmdrwparms]="cmdrwparms "			#run existing code with @args 
 dcmdhelp[cmdlsmods]=cmdlsmods			#cpan list installed
 dcmdhelp[cmdlsmodsgrep]=cmdlsmodsgrep	#cpan list | grep str
 dcmdhelp[cmdshowc]=cmdshowc				#list current code
@@ -67,15 +73,17 @@ dcmdhelp[cmdcatf]="cmdcatf "			#cat named file
 dcmdhelp[cmdcatsub]="cmdcatsub "		#search subroutine names in a perl file
 dcmdhelp[cmdcatpkg]="cmdcatpkg "		#search package names in a perl file 
 dcmdhelp[cmdclear]=cmdclear				#clear all code
+dcmdhelp[cmdclrlast]=cmdclrlast				#clear last line; code must be correct without the line
 dcmdhelp[cmdpdocq]="cmdpdocq "			#perldoc query FAQs
 dcmdhelp[cmdpdocf]="cmdpdocf "			#perldoc query functions
-dcmdhelp[cmdrwparms]="cmdrwparms "			#run existing code with parameters
 
 
 #modes for input
 declare -A dcntrlMode
 dcntrlMode[cmSubrForL]=0
 dcntrlMode[bIsSubNotForL]=1
+dcntrlMode[cmPODmode]=0
+
 declare -a aSubrForL
 
 
@@ -200,7 +208,7 @@ function bFileIsValid () {
 }
 
 echo -e "\e[32m"
-echo -e "For help, type ${dcmdhelp[cmdhelp]}\nFor cmd details, type ${dcmdhelp[cmdhelpcmd]}\nTo exit, type ${dcmdhelp[cmdquit]} or ${dcmdhelp[cmdexit]}\n"
+echo -e "For help, type ${dcmdhelp[cmdhelp]}\nFor cmd details, type ${dcmdhelp[cmdhelpcmd]}\$cmdname.\nTo exit, type ${dcmdhelp[cmdquit]} or ${dcmdhelp[cmdexit]}\n"
 echo "Reminder: To type a backslash for an array ref or hash ref, type two backslashes to escape the second one."
 
 
@@ -216,8 +224,54 @@ do
 	subregex="sub [a-zA-Z0-9]+\ *{\ *$"
 	forregex="for my [^[:space:]]+\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
 	whlregex="while\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
-	
-#	 if [[ $codeline =~ ^sub" " || $codeline =~ ^for" " ]];
+	podopnregex="^=pod"
+	podendregex="^=cut"
+
+
+	### BEGIN POD MODE
+	 if [[ $codeline =~ $podopnregex && ${dcntrlMode[cmPODmode]} -eq 0 ]];
+	 then 
+		
+		msgincolour "Received pod cmd. Add a new line with only =cut to complete"
+		dcntrlMode[cmPODmode]=1
+		aSubrForL+=("$codeline")
+		listCurrSubrForL
+		continue
+
+	 elif [[ $codeline =~ ^$podendregex ]];
+	 then 
+		msgincolour "Received end of pod marker $codeline"
+		dcntrlMode[cmPODmode]=0
+		aSubrForL+=("$codeline")
+		listCurrSubrForL
+		cp $tmpfile $scratchfile
+		appendSubToScratchFile
+		frv="$(bFileIsValid $scratchfile)"
+
+		if [ "$frv" -eq 1 ]; then
+		 cp $scratchfile $tmpfile
+		 
+		else
+		 msgincolour "Invalid code, discarding..."
+		 listCurrSubrForL
+		 unset aSubrForL 
+		fi
+		continue
+		
+	 elif [[ ${dcntrlMode[cmPODmode]} -eq 1 ]];
+	 then
+		msgincolour "(Continue inside pod. Add a new line with only $podendregex to complete the scope.)"
+		sleep 1
+		aSubrForL+=(" $codeline")
+		listCurrSubrForL
+		
+		continue
+	 fi
+
+	### END POD MODE
+
+	### BEGIN SUBFORWHILE MODE
+#	 if creating a subroutine or loop
 	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whlregex) && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
 
 	 then 
@@ -228,7 +282,7 @@ do
 		 dcntrlMode[bIsSubNotForL]=0
 		fi
 		
-		msgincolour "received scope marker $codeline ,  add line with only }## to complete"
+		msgincolour "Received scope marker $codeline ,  add line with only }## to complete"
 		dcntrlMode[cmSubrForL]=1
 		aSubrForL+=("$codeline")
 		listCurrSubrForL
@@ -237,7 +291,7 @@ do
 #	 elif [[ $codeline =~ ^}$ || $codeline =~ ^}# ]];
 	 elif [[ $codeline =~ ^}##$ ]];
 	 then 
-		msgincolour "received end of multiline sub/loop marker $codeline"
+		msgincolour "Received end of multiline sub/loop marker $codeline"
 		dcntrlMode[cmSubrForL]=0
 		aSubrForL+=("$codeline")
 		listCurrSubrForL
@@ -265,8 +319,9 @@ do
 		
 		continue
 	 fi
+	### END SUBFORWHILE MODE
 
-
+	### BEGIN CMD and CODE MODE
 	 if [[ ${dcmdhelp[cmdquit]} == $codeline || ${dcmdhelp[cmdexit]} == $codeline ]];
 	 then 
 		echo "received ${dcmdhelp[cmdquit]}"
@@ -337,6 +392,38 @@ do
 		
 		continue
 
+	elif [[ $codeline =~ ${dcmdhelp[cmdrunfwargs]} ]];
+	 then
+		cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $cntParams -ge 2 ]]; 
+		then
+		 funcnym=$(echo $codeline | awk '{print $2}')
+   		 echo "Received cmdrunfwargs cmd $funcnym $codeline"
+		 paramstr=$(echo $codeline | awk -F'"| ' '{for(i=3;i<=NF;i++){printf "%s ",$i; if(i!=NF){ printf ", "}}}')
+		 echo "subroutine to run: $funcnym($paramstr)"
+		 tmprwargs=_tmp002.txt
+		 cp $tmpfile $tmprwargs
+		 echo "my \$func = \&$funcnym ;" >> $tmprwargs
+		 echo "\$func->($paramstr);" >> $tmprwargs #add arguments
+		 msgincolour "Temp file:"
+		 cat $tmprwargs
+		 msgincolour "Check file..."
+		 rv=$(perl -I . -c $tmprwargs)
+
+		 if [ $? -eq 0 ]
+		 then
+			perl -I . $tmprwargs 
+			  
+		 else
+		  echo "There was an error." 
+		 fi
+		 
+		 
+		fi
+		continue
+
+
+
 	elif [[ $codeline =~ ${dcmdhelp[cmdpdocf]} || $codeline =~ ${dcmdhelp[cmdpdocq]} ]];
 	 then
 		cntParams=$(echo $codeline | awk '{print NF}')
@@ -381,6 +468,23 @@ do
 		rm $tmpfile
 		touch $tmpfile
 		continue
+		
+	elif [[ ${dcmdhelp[cmdclrlast]} == $codeline ]];
+	 then
+		head -n -1 $tmpfile > $scratchfile
+		#if it compiles, keep
+		rv=$(perl -I . -c $scratchfile)
+		if [ $? -eq 0 ]
+		 then
+		  cp $scratchfile $tmpfile
+		  msgincolour "Cleared the last line"
+
+		else 
+		 msgincolour "Could not clear the last line"
+		fi
+		continue
+		
+		
 	 elif [[ ${dcmdhelp[cmdlsdir]} == $codeline ]];
 	 then
 		ls -l 
@@ -441,7 +545,7 @@ do
 		then
 		 paramstr=$(echo $codeline | awk '{for(i=2;i<=NF;i++){printf "%s ",$i}}')
 		 echo "run existing code with parameters $parmstr"
-		 perl -I . $scratchfile $paramstr
+		 perl -I . $tmpfile $paramstr
 		 echo "Done!"
 		else
 		 echo "need parameters after cmdword"
@@ -453,12 +557,12 @@ do
 	 else
 	  cmdhistory+=("$codeline")
 	 fi
-	 
-	 
+	 ### END CMD and CODE MODE
+
+
+	### BEGIN COMPILE AND TEST MODE
 	 echo "$codeline" >> $tmpfile
 	 rv=$(perl -I . -c $tmpfile)
-
-	 
 
 	 if [ $? -eq 0 ]
 	 then
@@ -468,6 +572,7 @@ do
 		mv $scratchfile $tmpfile
 	 	  
 	 fi
+	### END COMPILE and TEST MODE
 
 done
 
