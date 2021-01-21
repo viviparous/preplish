@@ -26,6 +26,20 @@ Planned features:
 
 = CRUD functions for checkpoint files
 
+Inspiration for this project
+
+= Bash and Perl (of course)
+
+= other REPLs, from simple (Python) to complex (Jupyter)
+
+= This post by Mike Stroyan:
+
+Subject: 	Re: Readline history and bash's read -e
+
+Date: 	Sun, 2 Sep 2007 16:36:20 -0600
+
+https://lists.gnu.org/archive/html/bug-bash/2007-09/msg00004.html
+
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 

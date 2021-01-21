@@ -13,7 +13,7 @@
 
 
 dts=$(date +"%Y.%m.%d_%H%M")
-fstem=_tmp.pl
+fstem=_repl.pl
 tmpfile=$dts$fstem
 touch $tmpfile
 scratchfile=_tmp001.txt
@@ -26,7 +26,7 @@ touch $subrfile
 chkpval=0
 tc001=1 
 
-declare -a aTmpFiles
+declare -a aTmpFiles	#add files to remove
 aTmpFiles+=($scratchfile)
 
  
@@ -113,6 +113,19 @@ function showhistory () {
 #     echo $value
 #done
 	
+}
+
+function cleartmpfiles {
+
+	msgincolour "Clear tmp files..."
+	for i in ${!aTmpFiles[@]}; do
+	 if [[ -e ${aTmpFiles[$i]} ]]; then 
+	  rm  ${aTmpFiles[$i]} 
+	  echo -n "." && sleep 1 && echo -n "." && sleep 1 && echo -n "."
+	 fi
+	done
+
+
 }
 
 
@@ -216,11 +229,15 @@ echo -e "\e[35m"
 for i in ${!aAppMsgs[@]}; do echo -e "$i /  ${aAppMsgs[$i]}" ; done
 echo -e "\e[m"
 
+history -r cmdhistory
+set -o vi
+
 while [ $tc001 ]; 
 do
 
-	 read -p '>>>: ' codeline
-
+	read -ep '>>>: ' codeline
+	history -s "$codeline"
+	
 	subregex="sub [a-zA-Z0-9]+\ *{\ *$"
 	forregex="for my [^[:space:]]+\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
 	whlregex="while\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
@@ -399,9 +416,11 @@ do
 		then
 		 funcnym=$(echo $codeline | awk '{print $2}')
    		 echo "Received cmdrunfwargs cmd $funcnym $codeline"
+		 #must handle args intelligently 
 		 paramstr=$(echo $codeline | awk -F'"| ' '{for(i=3;i<=NF;i++){printf "%s ",$i; if(i!=NF){ printf ", "}}}')
 		 echo "subroutine to run: $funcnym($paramstr)"
 		 tmprwargs=_tmp002.txt
+		 aTmpFiles+=($tmprwargs)
 		 cp $tmpfile $tmprwargs
 		 echo "my \$func = \&$funcnym ;" >> $tmprwargs
 		 echo "\$func->($paramstr);" >> $tmprwargs #add arguments
@@ -543,6 +562,7 @@ do
 		cntParams=$(echo $codeline | awk '{print NF}')
 		if [[ $cntParams -gt 1 ]]; 
 		then
+		 #must handle args intelligently
 		 paramstr=$(echo $codeline | awk '{for(i=2;i<=NF;i++){printf "%s ",$i}}')
 		 echo "run existing code with parameters $parmstr"
 		 perl -I . $tmpfile $paramstr
@@ -576,6 +596,10 @@ do
 
 done
 
-rm $scratchfile
+subrforLC=$(wc -l $subrfile | awk '{print $1}' )
+if [[ $subforLC -eq 0 ]]; then rm $subrfile; fi
+cleartmpfiles
+history -w cmdhistory
+echo "cmd history:"
 showhistory
 echo "Saved in file $tmpfile"
