@@ -2,6 +2,8 @@
 
 Perl REPL in Shell: a simple REPL for Perl 5 written in Bash. 
 
+It runs wherever Perl and Bash run. (Um... everywhere.)
+
 You may find it useful as well as easy to understand. It's Bash. ^_^
 
 ### Project Status: Active
