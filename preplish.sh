@@ -1,6 +1,7 @@
 #! /usr/bin/bash
 
 #TODO:  
+#highlight string in code
 #use bash to manage args
 #remove temp files and dump non-zero length files to a "dump"
 #create modes: mode1=coding; mode2=querying
@@ -56,7 +57,7 @@ declare -a cmdhistory
 declare -A dcmdhelp
 
 dcmdhelp[cmdhelp]=cmdhelp 				#show all REPL cmds
-dcmdhelp[cmdhelpcmd]="cmdhelpcmd "			#show description for a cmdword
+dcmdhelp[cmdhelpd]="cmdhelpd "			#show description for a cmdword
 dcmdhelp[cmdexit]=cmdexit				#exit,quit
 dcmdhelp[cmdquit]=cmdquit				#exit,quit
 dcmdhelp[cmdlist]=cmdlist				#show input history
@@ -124,6 +125,44 @@ function cleartmpfiles {
 	 fi
 	done
 
+
+}
+
+
+function parseArgLine {
+
+
+	bUseComma=$1 	# 0 no , 1 yes
+	
+	bMkQQField=0
+	declare -a aQQField
+	declare -a aFINAL
+
+	for arg in $2; do
+
+	 if [[ $arg =~ ^\" && $arg =~ [^\"]$ ]]; then 	#start of "string with spaces"
+	  bMkQQField=1;
+	  aQQField+=($arg)
+	 elif [[ $arg =~ \"$ && $arg =~ ^[^\"] ]]; then		#end of "string with spaces"
+	  aQQField+=($arg)
+	  bMkQQField=0
+	#  echo "${aQQField[@]}"
+	  aFINAL+=("${aQQField[@]}")
+		if [[ $bUseComma -eq 1 ]]; then aFINAL+=(,); fi
+	  unset aQQField
+	 elif [[ $bMkQQField -eq 1 ]]; then			
+	  aQQField+=("$arg")
+	 else
+	#  echo "23arg: $arg"			#take arg as is
+		aFINAL+=($arg)
+		if [[ $bUseComma -eq 1 ]]; then aFINAL+=(,); fi
+	 fi
+
+	done
+
+	unset 'aFINAL[${#aFINAL[@]}-1]'
+	outstr=$(echo "${aFINAL[*]}")
+	echo $outstr
 
 }
 
@@ -220,15 +259,15 @@ function bFileIsValid () {
 }
 
 echo -e "\e[32m"
-echo -e "For help, type ${dcmdhelp[cmdhelp]}\nFor cmd details, type ${dcmdhelp[cmdhelpcmd]}\$cmdname.\nTo exit, type ${dcmdhelp[cmdquit]} or ${dcmdhelp[cmdexit]}\n"
-echo "Reminder: To type a backslash for an array ref or hash ref, type two backslashes to escape the second one."
+echo -e "For help, type ${dcmdhelp[cmdhelp]}\nFor cmd details, type ${dcmdhelp[cmdhelpd]}\$cmdname.\nTo exit, type ${dcmdhelp[cmdquit]} or ${dcmdhelp[cmdexit]}\n"
+echo "Important: To type a backslash for an array ref or hash ref, type two backslashes to escape the second one."
 
 
 echo -e "\e[35m"
 for i in ${!aAppMsgs[@]}; do echo -e "$i /  ${aAppMsgs[$i]}" ; done
 echo -e "\e[m"
 
-history -r cmdhistory
+history -r $0_cmds
 set -o vi
 
 while [ $tc001 ]; 
@@ -416,7 +455,8 @@ do
 		 funcnym=$(echo $codeline | awk '{print $2}')
    		 echo "Received cmdrunfwargs cmd $funcnym $codeline"
 		 #must handle args intelligently 
-		 paramstr=$(echo $codeline | awk -F'"| ' '{for(i=3;i<=NF;i++){printf "%s ",$i; if(i!=NF){ printf ", "}}}')
+		 codelinemod=$(echo $codeline | awk '{for(i=3;i<=NF;i++){printf "%s ",$i}}')
+		 paramstr=$(parseArgLine 1 "$codelinemod")
 		 echo "subroutine to run: $funcnym($paramstr)"
 		 tmprwargs=_tmp002.txt
 		 aTmpFiles+=($tmprwargs)
@@ -461,7 +501,7 @@ do
 		fi
 		continue
 
-	elif [[ $codeline =~ ${dcmdhelp[cmdhelpcmd]} ]];
+	elif [[ $codeline =~ ${dcmdhelp[cmdhelpd]} ]];
 	 then
 		cntParams=$(echo $codeline | awk '{print NF}')
 		if [[ $cntParams -eq 2 ]]; 
@@ -562,8 +602,9 @@ do
 		if [[ $cntParams -gt 1 ]]; 
 		then
 		 #must handle args intelligently
-		 paramstr=$(echo $codeline | awk '{for(i=2;i<=NF;i++){printf "%s ",$i}}')
-		 echo "run existing code with parameters $parmstr"
+		 codelinemod=$(echo $codeline | awk '{for(i=2;i<=NF;i++){printf "%s ",$i}}')
+		 paramstr=$(parseArgLine 0 "$codelinemod")
+		 echo "run existing code with parameters $paramstr"
 		 perl -I . $tmpfile $paramstr
 		 echo "Done!"
 		else
@@ -598,7 +639,7 @@ done
 subrforLC=$(wc -l $subrfile | awk '{print $1}' )
 if [[ $subforLC -eq 0 ]]; then rm $subrfile; fi
 cleartmpfiles
-history -w cmdhistory
-echo "cmd history:"
+history -w $0_cmds
+echo -e "\ncmd history:"
 showhistory
 echo "Saved in file $tmpfile"

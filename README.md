@@ -34,6 +34,8 @@ Features:
 
 Known Problems and Planned Features:
 
+= add search highlight for given string
+
 = fix some use-cases for ARGV (WIP)
 
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
@@ -44,6 +46,8 @@ Inspiration for this project
 = Bash and Perl (of course)
 
 = other REPLs, from simple (Python) to complex (Jupyter)
+
+= Readline vi Mode https://www.gnu.org/software/bash/manual/html_node/Readline-vi-Mode.html
 
 = This post by Mike Stroyan:
 
