@@ -1,13 +1,11 @@
 #! /usr/bin/bash
 
 #TODO:  
+# adjust grep regex for var counts
 #highlight string in code
-#use bash to manage args
-#remove temp files and dump non-zero length files to a "dump"
 #create modes: mode1=coding; mode2=querying
-#kvpargs ;; dynamic object, add methods
 #import lines (not whole file) from scratchfile or from cmdhistory
-#if subrfile is empty, rm 
+#before run, append $file as  __DATA__ 
 
 #https://misc.flogisoft.com/bash/tip_colors_and_formatting
 
@@ -76,13 +74,14 @@ dcmdhelp[cmdclear]=cmdclear				#clear all code
 dcmdhelp[cmdclrlast]=cmdclrlast				#clear last line; code must be correct without the line
 dcmdhelp[cmdpdocq]="cmdpdocq "			#perldoc query FAQs
 dcmdhelp[cmdpdocf]="cmdpdocf "			#perldoc query functions
-
+dcmdhelp[cmdtogrun]="cmdtogrun"			#toggle run code after each line is added; code check remains active
 
 #modes for input
 declare -A dcntrlMode
 dcntrlMode[cmSubrForL]=0
 dcntrlMode[bIsSubNotForL]=1
 dcntrlMode[cmPODmode]=0
+dcntrlMode[cmTOGrun]=1				#default is true, run code after each line is added
 
 declare -a aSubrForL
 
@@ -108,11 +107,6 @@ function showhistory () {
 	  msglinesyntax "$i /  ${cmdhistory[$i]}" 
 	done
 
-#for value in "${cmdhistory[@]}"
-#do
-#     echo $value
-#done
-	
 }
 
 function cleartmpfiles {
@@ -134,34 +128,45 @@ function parseArgLine {
 
 	bUseComma=$1 	# 0 no , 1 yes
 	
+	shift			# now we process the remaining arguments
+
 	bMkQQField=0
 	declare -a aQQField
 	declare -a aFINAL
 
-	for arg in $2; do
+	while [[ $# -gt 0 ]]; do
+		arg="$1"
 
-	 if [[ $arg =~ ^\" && $arg =~ [^\"]$ ]]; then 	#start of "string with spaces"
-	  bMkQQField=1;
-	  aQQField+=($arg)
-	 elif [[ $arg =~ \"$ && $arg =~ ^[^\"] ]]; then		#end of "string with spaces"
-	  aQQField+=($arg)
-	  bMkQQField=0
-	#  echo "${aQQField[@]}"
-	  aFINAL+=("${aQQField[@]}")
-		if [[ $bUseComma -eq 1 ]]; then aFINAL+=(,); fi
-	  unset aQQField
-	 elif [[ $bMkQQField -eq 1 ]]; then			
-	  aQQField+=("$arg")
-	 else
-	#  echo "23arg: $arg"			#take arg as is
-		aFINAL+=($arg)
-		if [[ $bUseComma -eq 1 ]]; then aFINAL+=(,); fi
-	 fi
+		#echo "$0 $LINENO arg: $arg"
 
+		 if [[ $arg =~ ^\" && $arg =~ [^\"]$ ]]; then 	#start of "string with spaces"
+		  bMkQQField=1;
+		  aQQField+=($arg)
+		 elif [[ $arg =~ \"$ && $arg =~ ^[^\"] ]]; then		#end of "string with spaces"
+		  aQQField+=($arg)
+		  bMkQQField=0
+		#  echo "${aQQField[@]}"
+		  aFINAL+=("${aQQField[@]}")
+			if [[ $bUseComma -eq 1 ]]; then aFINAL+=(,); fi
+		  unset aQQField
+		 elif [[ $bMkQQField -eq 1 ]]; then			
+		  aQQField+=("$arg")
+		 else
+		#  echo "23arg: $arg"			#take arg as is
+			aFINAL+=($arg)
+			if [[ $bUseComma -eq 1 ]]; then aFINAL+=(,); fi
+		 fi
+
+		
+		# Shift to get the next arg
+		shift
 	done
 
-	unset 'aFINAL[${#aFINAL[@]}-1]'
-	outstr=$(echo "${aFINAL[*]}")
+
+	if [[ $bUseComma -eq 1 ]]; then	unset 'aFINAL[${#aFINAL[@]}-1]'; fi	#delete last comma
+#	outstr=$(echo "${aFINAL[*]}")
+	outstr=$(echo ${aFINAL[*]})
+
 	echo $outstr
 
 }
@@ -196,11 +201,17 @@ echo $1 | sed -e 's/[\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[
 }
 
 function listCurrSubrForL () {
-
+	if [[ -e $scratchfile ]]; then rm $scratchfile; fi
+	touch $scratchfile
+	
 	for i in ${!aSubrForL[@]}; do
 	  msglinesyntax "$i /  ${aSubrForL[$i]}" 
+	  echo "${aSubrForL[$i]}" >> $scratchfile
 	done
-	
+
+	#syntax helper
+	synhelp=$(grep -oP "(?<=[\\$\%\@])[\w\d_]+(?=[\\$\=\-\[\(\{])" $scratchfile | awk '{n[$1]++;}END{for (a in n) { print a"="n[a]" "}}' | sort | awk '{printf $0; printf " ;; "}')
+	msgincolour "$synhelp"
 }
 
 function mkcheckpoint () {
@@ -456,8 +467,9 @@ do
    		 echo "Received cmdrunfwargs cmd $funcnym $codeline"
 		 #must handle args intelligently 
 		 codelinemod=$(echo $codeline | awk '{for(i=3;i<=NF;i++){printf "%s ",$i}}')
-		 paramstr=$(parseArgLine 1 "$codelinemod")
-		 echo "subroutine to run: $funcnym($paramstr)"
+		 echo "$0 $LINENO dbg: $codelinemod"
+		 paramstr=$(parseArgLine 1 $codelinemod)
+		 echo "$0 $LINENO subroutine to run: $funcnym($paramstr)"
 		 tmprwargs=_tmp002.txt
 		 aTmpFiles+=($tmprwargs)
 		 cp $tmpfile $tmprwargs
@@ -603,16 +615,21 @@ do
 		then
 		 #must handle args intelligently
 		 codelinemod=$(echo $codeline | awk '{for(i=2;i<=NF;i++){printf "%s ",$i}}')
-		 paramstr=$(parseArgLine 0 "$codelinemod")
+		 echo "$0 $LINENO dbg : $codelinemod"
+		 paramstr=$(parseArgLine 0 $codelinemod)
 		 echo "run existing code with parameters $paramstr"
-		 perl -I . $tmpfile $paramstr
+		 perl -I . $tmpfile "$paramstr"
 		 echo "Done!"
 		else
 		 echo "need parameters after cmdword"
 		fi
 		
 		continue		
-		
+	elif [[ ${dcmdhelp[cmdtogrun]} == $codeline ]];
+	 then
+		if [[ ${dcntrlMode[cmTOGrun]} -eq 1	]]; then dcntrlMode[cmTOGrun] =0 ; else  dcntrlMode[cmTOGrun]=1; fi
+		msgincolour "Toggled ${dcmdhelp[cmdtogrun]}, value now ${dcntrlMode[cmTOGrun]}"
+		continue		
 
 	 else
 	  cmdhistory+=("$codeline")
@@ -626,7 +643,7 @@ do
 
 	 if [ $? -eq 0 ]
 	 then
-		perl -I . $tmpfile 
+		if [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then perl -I . $tmpfile ; fi 
 	 else 
 		head -n -1 $tmpfile > $scratchfile
 		mv $scratchfile $tmpfile
