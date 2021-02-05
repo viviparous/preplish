@@ -1,7 +1,6 @@
 #! /usr/bin/bash
 
 #TODO:  
-# adjust grep regex for var counts
 #highlight string in code
 #create modes: mode1=coding; mode2=querying
 #import lines (not whole file) from scratchfile or from cmdhistory
@@ -210,7 +209,7 @@ function listCurrSubrForL () {
 	done
 
 	#syntax helper
-	synhelp=$(grep -oP "(?<=[\\$\%\@])[\w\d_]+(?=[\\$\=\-\[\(\{])" $scratchfile | awk '{n[$1]++;}END{for (a in n) { print a"="n[a]" "}}' | sort | awk '{printf $0; printf " ;; "}')
+	synhelp=$(perl -pe 's/[{}()\[\],;"()\=\-_]/ /g'  $scratchfile | grep -oP  "(?<=[\$\%\@])\S+\s" | awk '{n[$1]++;}END{for (a in n) { print a"="n[a]" "}}' | sort | awk '{printf $0; printf " ;; "}'	)
 	msgincolour "$synhelp"
 }
 
@@ -287,7 +286,7 @@ do
 	read -ep '>>>: ' codeline
 	history -s "$codeline"
 	
-	subregex="sub [a-zA-Z0-9]+\ *{\ *$"
+	subregex="sub [a-zA-Z0-9_]+\ *{\ *$"
 	forregex="for my [^[:space:]]+\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
 	whlregex="while\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
 	podopnregex="^=pod"
@@ -654,7 +653,8 @@ do
 done
 
 subrforLC=$(wc -l $subrfile | awk '{print $1}' )
-if [[ $subforLC -eq 0 ]]; then rm $subrfile; fi
+#echo "sz $subrfile $subrforLC"
+if [[ $subrforLC -eq 0 ]]; then rm $subrfile; fi
 cleartmpfiles
 history -w $0_cmds
 echo -e "\ncmd history:"
