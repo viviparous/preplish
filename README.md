@@ -1,10 +1,10 @@
 # preplish
 
-Perl REPL in Shell: a simple REPL for Perl 5 written in Bash. 
+Perl REPL in Shell: a simple REPL for Perl 5 written in Bash with grep, sed, and awk. 
 
-It runs wherever Perl and Bash run. (Um... everywhere.)
+It runs wherever Perl, Bash, grep, sed, and awk run. (That's... everywhere.)
 
-You may find it useful as well as easy to understand. It's Bash. ^_^
+This project aims to be a good REPL. Low barrier to entry, quick productivity. You may find it useful as well as easy to understand.
 
 ### Project Status: Active
 
@@ -24,13 +24,13 @@ You may find it useful as well as easy to understand. It's Bash. ^_^
 
 ## Known Problems and Planned Features
 * add search highlight for given string
-* fix some use-cases for ARGV (WIP)
+* add feature to append __DATA__ section to a file so the result is a complete "notebook"
 
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 
 ### Inspiration for this Project
-* Bash and Perl (of course)
+* Bash, Perl, grep, sed, awk
 * other REPLs, from simple (Python) to complex (Jupyter)
 * Readline vi Mode https://www.gnu.org/software/bash/manual/html_node/Readline-vi-Mode.html
 * This post by Mike Stroyan:
