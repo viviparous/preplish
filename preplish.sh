@@ -4,6 +4,7 @@
 #highlight string in code
 #create modes: mode1=coding; mode2=querying
 #import lines (not whole file) from scratchfile or from cmdhistory
+#append file , check after append
 #before run, append $file as  __DATA__ 
 
 #https://misc.flogisoft.com/bash/tip_colors_and_formatting
@@ -209,7 +210,7 @@ function listCurrSubrForL () {
 	done
 
 	#syntax helper
-	synhelp=$(perl -pe 's/[{}()\[\],;"()\=\-_]/ /g'  $scratchfile | grep -oP  "(?<=[\$\%\@])\S+\s" | awk '{n[$1]++;}END{for (a in n) { print a"="n[a]" "}}' | sort | awk '{printf $0; printf " ;; "}'	)
+	synhelp=$(perl -pe 's/[{}()\[\],;"()\=\-]/ /g'  $scratchfile | grep -oP  "(?<=[\$\%\@])\S+\s" | awk '{n[$1]++;}END{for (a in n) { print a"="n[a]" "}}' | sort | awk '{printf $0; printf " ;; "}'	)
 	msgincolour "$synhelp"
 }
 
