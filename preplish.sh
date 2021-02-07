@@ -122,6 +122,12 @@ function cleartmpfiles {
 
 }
 
+function mkdts {
+
+	dts=$(date +"%Y.%m.%d_%H%M")
+	echo $dts
+
+}
 
 function parseArgLine {
 
@@ -232,7 +238,10 @@ function appendSubToSubrFile () {
 	ofile=$subrfile
 	echo "init state... $ofile"
 	cat -n $ofile
-
+	
+	dtscmt=$( mkdts )
+	echo -e "\n### subroutine $dtscmt \n" >> $ofile 
+	
 	for i in "${aSubrForL[@]}"; do
 	  echo "$i" >> $ofile
 #	  printf '%s\n' "$i" >> $ofile	  
