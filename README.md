@@ -4,7 +4,7 @@ Perl REPL in Shell: a simple REPL for Perl 5 written in Bash with grep, sed, and
 
 It runs wherever Perl, Bash, grep, sed, and awk run. (That's... everywhere.)
 
-This project aims to be a good REPL. Low barrier to entry, quick productivity. You may find it useful as well as easy to understand.
+This project aims to be a good REPL that has value for general programming and data analysis with Perl. Low barrier to entry, quick productivity. You may find it useful as well as easy to understand.
 
 ### Project Status: Active
 
