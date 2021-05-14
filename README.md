@@ -2,9 +2,9 @@
 
 Perl REPL in Shell: a simple REPL for Perl 5 written in Bash with grep, sed, and awk. 
 
-It runs wherever Perl, Bash, grep, sed, and awk run. (That's... everywhere.)
+It runs wherever Perl, Bash, grep, sed, and awk run. (In short, it's portable.)
 
-This project aims to be a good REPL that has value for general programming and data analysis with Perl. Low barrier to entry, quick productivity. You may find it useful as well as easy to understand.
+This project aims to be a good|fun|easy REPL that has value for general programming and data analysis with Perl. Low barrier to entry, quick productivity. You may find it useful as well as easy to understand.
 
 ### Project Status: Active
 
@@ -14,17 +14,19 @@ This project aims to be a good REPL that has value for general programming and d
 * run current code with parameters (must be handled as @ARGV)
 * run a specific function with or without parameters
 * the code is checked (perl -I . -c $file) after every statement (subroutines and loops must be completed before they are checked)
-* you can import an existing Perl file (see the sample template)
+* import an existing Perl file (see the sample template)
+* create checkpoint files
+* you can append a __DATA__ section to the code and work with the data
+* export the result as a checkpoint file that contains both your code and the __DATA__ (a complete "notebook", a sort of _Stupyder Notebook_ (o: )
 * ls dir, grep $somefile for "sub" and "package"
 * list valid REPL commands, command history, and list the current code 
-* create checkpoint files
 * on exit, the code is saved to a file named using a date-stamp
 * if perldoc is detected, you can search (Perldoc is a separate installation)
 * if perltidy is detected, it is used to improve the display of code 
 
 ## Known Problems and Planned Features
 * add search highlight for given string
-* add feature to append __DATA__ section to a file so the result is a complete "notebook"
+* enable comment of a previous line or sequence of lines
 
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
 = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
@@ -51,7 +53,7 @@ Some Perl folks use the Perl debugger:
 
 perl -de 0
 
-If you need more features, this Perl REPL is a good alternative:
+If you need more features, this Perl REPL is a well-known alternative:
 
 https://metacpan.org/pod/Reply
 

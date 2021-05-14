@@ -2,10 +2,7 @@
 
 #TODO:  
 #highlight string in code
-#create modes: mode1=coding; mode2=querying
-#import lines (not whole file) from scratchfile or from cmdhistory
-#append file , check after append
-#before run, append $file as  __DATA__ 
+#create modes like vi: mode1=coding; mode2=querying
 
 #https://misc.flogisoft.com/bash/tip_colors_and_formatting
 
@@ -18,6 +15,9 @@ scratchfile=_tmp001.txt
 touch $scratchfile
 #logfile=_tmplog.txt
 #touch $logfile
+datasetsffx=_data.txt
+dataset=$tmpfile$datasetsffx
+echo "__DATA__" > $dataset #contains one line; erased if there is no data appended
 subrfilesffx=_subrfile.txt
 subrfile=$tmpfile$subrfilesffx
 touch $subrfile
@@ -75,6 +75,10 @@ dcmdhelp[cmdclrlast]=cmdclrlast				#clear last line; code must be correct withou
 dcmdhelp[cmdpdocq]="cmdpdocq "			#perldoc query FAQs
 dcmdhelp[cmdpdocf]="cmdpdocf "			#perldoc query functions
 dcmdhelp[cmdtogrun]="cmdtogrun"			#toggle run code after each line is added; code check remains active
+dcmdhelp[cmddataimp]="cmddataimp"			#append data to data file; if cmddatatog is TRUE, file is appended as __DATA__ section
+dcmdhelp[cmddatatog]="cmddatatog"			#toggle inclusion of __DATA__ section
+dcmdhelp[cmddataclear]="cmddataclear"			#clear __DATA__ section , but leave toggle in current state
+
 
 #modes for input
 declare -A dcntrlMode
@@ -82,6 +86,7 @@ dcntrlMode[cmSubrForL]=0
 dcntrlMode[bIsSubNotForL]=1
 dcntrlMode[cmPODmode]=0
 dcntrlMode[cmTOGrun]=1				#default is true, run code after each line is added
+dcntrlMode[bUseDataFile]=0			#toggle 
 
 declare -a aSubrForL
 
@@ -100,6 +105,11 @@ function showhelp () {
 
 }
 
+function showhelpdataops () {
+ msgincolour "After importing a data file as __DATA__ section, use cmddatatog to activate (toggle) the inclusion of the data."
+ msgincolour "Use the subroutines listDATA and readDATA to work with the __DATA__ section."	
+	
+}
 
 function showhistory () {
 
@@ -226,7 +236,14 @@ function mkcheckpoint () {
  then
   chkpfstem="_chkp_"
   chkpext=".txt"
-  cp $tmpfile $tmpfile$chkpfstem$chkpval$chkpext
+  chkpf="$tmpfile$chkpfstem$chkpval$chkpext"
+  cp $tmpfile $chkpf
+  
+  if [[ ${dcntrlMode[bUseDataFile]} -eq 1 ]]
+	then 
+	cat $dataset >> $chkpf
+  fi  
+  
   chkpval=$(($chkpval+1))
   msgincolour "checkpoint saved"
  fi  
@@ -410,6 +427,11 @@ do
 	 then
 		showhistory
 		continue
+	elif [[ ${dcmdhelp[cmddatatog]} == $codeline ]];
+	 then
+		if [[ ${dcntrlMode[bUseDataFile]} -eq 1	]]; then dcntrlMode[bUseDataFile]=0 ; else  dcntrlMode[bUseDataFile]=1; fi
+		msgincolour "Toggled ${dcmdhelp[bUseDataFile]}, value now ${dcntrlMode[bUseDataFile]}"		
+		continue
 	 elif [[ ${dcmdhelp[cmdshowc]} == $codeline ]];
 	 then
 #		cat -n $tmpfile | perltidy -st #$grepwsyntax
@@ -443,7 +465,7 @@ do
 		if [[ -e $fname ]]; 
 		then 
 		 echo "Found $fname"
-		 grep -HinP "^\s*sub\s+\S+\s+{" $fname 
+		 grep --colour -HinP "^\s*sub\s+\S+\s+{" $fname 
 
 		else
 		 echo "No file $fname"
@@ -459,7 +481,7 @@ do
 		if [[ -e $fname ]]; 
 		then 
 		 echo "Found $fname"
-		 grep -HinP "^\s*package\s+\S+\s+{" $fname
+		 grep --colour -HinP "^\s*package\s+\S+\s+{" $fname
 
 		else
 		 echo "No file $fname"
@@ -615,6 +637,30 @@ do
 		fi
 		
 		continue
+
+	elif [[ $codeline =~ ${dcmdhelp[cmddataimp]} ]];
+	 then
+		echo "received import data cmd $codeline"
+		fname=$(echo $codeline | awk '{print $2}')
+		if [[ -e $fname ]]; 
+		then 
+		 echo "Found $fname"
+
+				cat $fname >> $dataset
+				echo "Imported $fname"
+				showhelpdataops
+
+		else
+		 echo "No file $fname"
+		fi
+		
+		continue
+
+	elif [[ ${dcmdhelp[cmddataclear]} == $codeline ]];
+	 then
+		echo "__DATA__" > $dataset
+		continue
+
 		
 	elif [[ $codeline =~ ${dcmdhelp[cmdrwparms]} ]];
 	 then
@@ -648,12 +694,24 @@ do
 
 	### BEGIN COMPILE AND TEST MODE
 	 echo "$codeline" >> $tmpfile
+	 
+
+	 
 	 rv=$(perl -I . -c $tmpfile)
 
-	 if [ $? -eq 0 ]
+	 if [ $? -eq 0 ] #compile worked
 	 then
-		if [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then perl -I . $tmpfile ; fi 
-	 else 
+		
+		 if [[ ${dcntrlMode[bUseDataFile]} -eq 1 ]]
+		 then 
+			cat $tmpfile > $scratchfile
+			cat $dataset >> $scratchfile
+			if [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then perl -I . $scratchfile ; fi 
+
+		 elif [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then perl -I . $tmpfile 
+		 fi 
+		
+	 else 			#compile failed
 		head -n -1 $tmpfile > $scratchfile
 		mv $scratchfile $tmpfile
 	 	  
@@ -665,6 +723,8 @@ done
 subrforLC=$(wc -l $subrfile | awk '{print $1}' )
 #echo "sz $subrfile $subrforLC"
 if [[ $subrforLC -eq 0 ]]; then rm $subrfile; fi
+dataLC=$(wc -l $dataset | awk '{print $1}' )
+if [[ $dataLC -lt 2 ]]; then rm $dataset; fi
 cleartmpfiles
 history -w $0_cmds
 echo -e "\ncmd history:"
