@@ -1,10 +1,15 @@
 # preplish
 
-Perl REPL in Shell: a simple REPL for Perl 5 written in Bash with grep, sed, and awk. 
+Perl REPL in Shell: a simple REPL for Perl 5 written in Bash with grep, sed, awk, and Perl.
+
+![usage01](https://github.com/viviparous/preplish/blob/main/step001-preplish-opt.gif)
+
 
 It runs wherever Perl, Bash, grep, sed, and awk run. (In short, it's portable.)
 
 This project aims to be a good|fun|easy REPL that has value for general programming and data analysis with Perl. Low barrier to entry, quick productivity. You may find it useful as well as easy to understand.
+
+![usage03](https://github.com/viviparous/preplish/blob/main/step003-preplish-opt.gif)
 
 ### Project Status: Active
 
@@ -23,6 +28,10 @@ This project aims to be a good|fun|easy REPL that has value for general programm
 * on exit, the code is saved to a file named using a date-stamp
 * if perldoc is detected, you can search (Perldoc is a separate installation)
 * if perltidy is detected, it is used to improve the display of code 
+
+
+![usage02](https://github.com/viviparous/preplish/blob/main/step002-preplish-opt.gif)
+
 
 ## Known Problems and Planned Features
 * add search highlight for given string
