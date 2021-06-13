@@ -2,7 +2,10 @@
 
 #TODO:  
 #highlight string in code
-#create modes like vi: mode1=coding; mode2=querying
+#create modes: mode1=coding; mode2=querying
+#import lines (not whole file) from scratchfile or from cmdhistory
+#append file , check after append
+#before run, append $file as  __DATA__ 
 
 #https://misc.flogisoft.com/bash/tip_colors_and_formatting
 
@@ -449,8 +452,12 @@ do
 		if [[ -e $fname ]]; 
 		then 
 		 echo "Found $fname"
-		# cat -n $fname | $grepwsyntax
-		 coloursyntax $fname
+		# use syntax colour for .pl files
+			if [[ "$fname" =~ \.[Pp][Ll]$ ]] ; then coloursyntax $fname; 
+			elif [[ "$fname" =~ \.[Tt][Xx][Tt]$ ]] ; then cat -n $fname | perl -pe  's/(\d+)/\e[1;34m\1\033[0m/g' ; 
+			else cat -n $fname
+			fi
+		
 		else
 		 echo "No file $fname"
 		fi
@@ -702,14 +709,35 @@ do
 	 if [ $? -eq 0 ] #compile worked
 	 then
 		
+		 #if last line contains a LH assignment, test the value
+		 #capture the variable, insert "showtype($varname)" and run
+		bEvalLast=0
+		lside=-1
+		lastline=$(tail -n 1 $tmpfile)
+		if ! echo "$lastline" | grep -q "==" && ! echo "$lastline" |  grep -q "!=" && ! echo "$lastline" | grep -q ">=" && ! echo "$lastline" | grep -q "<=" && echo "$lastline" | grep -q "=" ; then
+		 lside=$(echo $lastline | perl -lne 'my $v=$_; my $rv=0; my $xEQ=index($v, "="); my $s1=substr($v,0,$xEQ-1); if(  $s1 !~ /[{}()]/  && ! m/==/ && m/[^!><+-]=/ ){ m/(\S+)=/; $rv=$1; } print $rv; ' )
+		 #echo "$LINENO dbg: $lside"
+		 varlen=${#lside} 
+		 if [[ $lside != "0" && $varlen -gt 1 ]]; then bEvalLast=1 ; fi
+		 
+		fi
+		
 		 if [[ ${dcntrlMode[bUseDataFile]} -eq 1 ]]
 		 then 
 			cat $tmpfile > $scratchfile
 			cat $dataset >> $scratchfile
 			if [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then perl -I . $scratchfile ; fi 
 
-		 elif [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then perl -I . $tmpfile 
-		 fi 
+		 elif [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then 
+		  cat $tmpfile > $scratchfile
+		  if [[ $bEvalLast -eq 1 ]]; then echo "typeinfo($lside);" >> $scratchfile ; fi
+		  perl -I . $scratchfile
+		  if [[ $bEvalLast -eq 1 ]]; then echo "assigned lvalue: $lside , length $varlen" ; fi		  
+		 
+		 elif [[ $bEvalLast -eq 1 ]]; then 
+		  #copy main file to tmp, append perl evaluation statement; tail -n 1 the output		 
+		  echo "assigned lvalue: $lside , length $varlen"
+		fi
 		
 	 else 			#compile failed
 		head -n -1 $tmpfile > $scratchfile

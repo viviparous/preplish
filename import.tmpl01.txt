@@ -2,7 +2,11 @@
 use strict;
 use warnings;
 use feature 'say';
+use Data::Dumper;
 use Scalar::Util qw(looks_like_number);
+use List::Util qw( 
+head tail uniqstr uniqnum uniqint uniq pairs any all none notall first max maxstr min minstr product sum sum0 pairs pairkeys pairvalues shuffle 
+);
 
 =pod
 PREPLISH template file. 
@@ -12,7 +16,7 @@ Import and use. Make your own!
 
 
 # list args
-if (scalar(@ARGV)==0){ say __LINE__." No command-line args received."; }
+if (scalar(@ARGV)==0){ say "( ".__LINE__." No command-line args received. )"; }
 #handle args that may be quoted
 else {
 	my $bMkStr=0;
@@ -49,7 +53,7 @@ package cOrdict {
 		my $self = { uic=>$class."-".__LINE__."-".time , aKeys=>\@aKeys , dKeysVals=>\%dKeysVals , bDbg=>1 };
 		return bless $self, $class;
 	}
-	sub identify { my $self=shift; say "OrdHash ". $self->{uic};}
+	sub identify { my $self=shift; say "cOrdict ". $self->{uic};}
 	sub addKV { my ($self,$key,$value)=@_; 
 		if($self->{bDbg}==1){ say $self->{uic}." addKV $key , $value" ; }
 		my $arf=$self->{aKeys}; my $pkcount=scalar(@$arf); push @$arf,$key; 
@@ -129,7 +133,12 @@ sub doArgTest02 {
 	push @ary, @acmts; 
 	unshift @ary, mksqbracks(__LINE__); unshift @ary, "doArgTest02"; doMsgArf(\@ary);
 }
-
+sub typeinfo { 
+	my $var=shift; 
+	if(ref($var)) { say "ref $var of type ". ref($var);  }
+	elsif(looks_like_number($var)) { say "$var of type number";  }
+	else { say Dumper ($var); } 
+}	
 sub dec2hex { my $d=shift; return sprintf( "%x" , $d ); }
 sub padint { my $i=shift; if ($i<10){ return "  ".$i;} elsif ( $i < 100) { return " ".$i} else {return $i;} }
 sub roundXtoYdecimals { my ($f , $dp) = @_; return sprintf("%.".$dp."f", $f); }
@@ -238,7 +247,14 @@ sub doSummaryCalcs {
 }	
 
 
-
+sub openFileRetArf { my $f=shift; my @ary=(); 
+	if(! -e $f) { unshift @ary, mksqbracks(__LINE__); unshift @ary, "File $f not found."; doMsgArf(\@ary);}
+	else { open( my $SF, "<", $f ); @ary=<$SF>; close($SF); 
+	 chomp(@ary);
+	 say "Read \"$f\" , line count ". scalar(@ary); 
+	 return \@ary; 
+	}
+}
 
 sub listDATA {
 	my $data_start = tell DATA;
