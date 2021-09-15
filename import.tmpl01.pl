@@ -104,8 +104,33 @@ package cOrdict {
 	}
 };
 
+#friendly subroutine interfaces
+sub help {
+ my @aFuncs=("getColFromFile" , "doSummaryCalcs");	
+ say "Use the friendly subroutines to perform basic operations with data.";	
+ say "@aFuncs";	
+}
+
+sub getColFromFile { #params: colnum, filename // colnum is human ordinal; split on space; excludes #cmt and empty lines
+
+	my ($colnum, $fname)=@_;
+	say "Open $fname , return column $colnum"; 
+	my $arfdata=openFileRetArf( $fname );
+	say "@$arfdata";
+	
+	my @aVals=();
+	for my $L (@$arfdata) { chomp($L); say $L; }
+
+	for my $L (@$arfdata) { 
+		chomp($L); if($L=~/^#/ || length($L)==0 ) { next; } 
+		my @aParts=split(/\s+/,$L); push @aVals,$aParts[$colnum-1];
+	}
+	say "Column stored: ".join(" ;; ", @aVals);
+	return \@aVals;
+}
 
 #some subroutines
+
 sub mksqbracks { my $v=shift; return "[ $v ] " ; }
 sub mkDivider { my $val=shift; say "\n". 'x' x 80 . "_$val\n"; }
 sub doMsgArf { my $arf=shift; my @ary=@$arf; say mksqbracks($ary[0]). join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
@@ -187,6 +212,17 @@ sub computeMean { #arg is a REFERENCE to an array of numbers;
 	my $t=computeSum($r);
 	return $t/scalar(@$r);
 }
+
+sub computeStnDev { #arg is a REFERENCE to an array of numbers;
+	my $r = shift;
+	my $m=computeMean($r);
+	my @aSqV=();
+	for my $inval (@$r) { my $d=$inval-$m; push @aSqV,$d*$d; }
+	$m = computeMean(\@aSqV);
+	return sqrt($m);
+}
+
+
 ###do integers differ by At Least One Order Of Magnitude
 sub isXgtYbyALOOM {
 	my ($x,$y)=@_;
@@ -222,7 +258,7 @@ sub computeFrequency {
 	return \%rvH;
 }
 
-sub doSummaryCalcs {
+sub doSummaryCalcs { #params: arf , short description
 	
 		my ($arfNums,$taskdesc)=@_;
 		mkDivider(mksqbracks(__LINE__));
@@ -240,6 +276,7 @@ sub doSummaryCalcs {
 		say "minmax= ". join( " ;; ", @amnmx);	
 		say "mean = ". computeMean([ keys %$hData ]);
 		say "median = ". computeMedian([ keys %$hData ]);
+		say "standev = " . computeStnDev([ keys %$hData ]);
 
 		say mksqbracks(__LINE__) . " end $taskdesc array size ". scalar(@$arfNums);
 		mkDivider(mksqbracks(__LINE__));
