@@ -50,6 +50,41 @@ else
  aAppMsgs+=("no perltidy found")
 fi
 
+if [ -x "$(command -v perl)" ];
+then
+    aAppMsgs+=("perl is installed")
+    perlpath=$(which perl)
+    aAppMsgs+=($perlpath)
+	bPerl=1
+else
+	aAppMsgs+=("no perl found! end program")
+	echo -e "\e[35m"
+	for i in ${!aAppMsgs[@]}; do echo -e "$i /  ${aAppMsgs[$i]}" ; done
+	echo -e "\e[m"
+	exit 0
+fi
+
+
+includefile="import.tmpl01.txt"
+if [[ -e $includefile ]]; 
+then 
+ msgincolour "Found $includefile, importing..."
+ cat $includefile
+ cat $includefile >> $tmpfile
+ rv=$(perl -I . -c $tmpfile)
+
+	if [ $? -eq 0 ]
+	 then
+		cp $tmpfile $scratchfile
+		echo "Imported $includefile"
+
+	else 
+		echo "Error. Did not import $includefile"
+	fi
+ 
+else
+ msgincolour "No auto-import file $includefile found."
+fi
 
 
 declare -a cmdhistory
@@ -730,13 +765,19 @@ do
 
 		 elif [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then 
 		  cat $tmpfile > $scratchfile
-		  if [[ $bEvalLast -eq 1 ]]; then echo "typeinfo($lside);" >> $scratchfile ; fi
+		  if [[ $bEvalLast -eq 1 ]]; then 
+		  
+			echo "sub _gettypeinfo { my \$var=shift; if(ref(\$var)) { say \"ref \$var of type \". ref(\$var);  }" >> $scratchfile  
+			echo "	elsif(looks_like_number(\$var)) { say \"\$var of type number\";  }" >> $scratchfile 
+			echo "		else { say Dumper (\$var); } }" >> $scratchfile 
+			echo "_gettypeinfo($lside);" >> $scratchfile 
+		  fi
 		  perl -I . $scratchfile
 		  if [[ $bEvalLast -eq 1 ]]; then echo "assigned lvalue: $lside , length $varlen" ; fi		  
 		 
 		 elif [[ $bEvalLast -eq 1 ]]; then 
 		  #copy main file to tmp, append perl evaluation statement; tail -n 1 the output		 
-		  echo "assigned lvalue: $lside , length $varlen"
+		  echo "created lvalue: $lside , name length $varlen"
 		fi
 		
 	 else 			#compile failed
