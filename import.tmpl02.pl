@@ -4,7 +4,6 @@ use warnings;
 use feature 'say';
 use Data::Dumper;
 use Scalar::Util qw(looks_like_number);
-#head tail uniqstr uniqnum uniqint uniq pairs any all none notall first max maxstr min minstr product sum sum0 pairs pairkeys pairvalues shuffle 
 use List::Util qw( 
 head tail uniqstr uniqnum uniq pairs any all none notall first max maxstr min minstr product sum sum0 pairs pairkeys pairvalues shuffle 
 );
@@ -46,6 +45,55 @@ else {
 	doArgTest01( @aArgs ) ; 
 	doArgTest02( @aArgs );
 }
+
+package cZipCols {
+
+	sub new {
+	 my ($class,$col1,$col2)=@_;
+	 my @cols=();
+	 if ( scalar(@$col1)==scalar(@$col2) ) { push @cols, $col1; push @cols, $col2;  }
+	 else { say "$class error, arrays of unequal size.";  return 0; } 
+	 my $self = {  cols=>\@cols , colsize=> scalar(@$col1) , cTrue=>1, cFalse=>0  };
+	 my $obj=bless $self,$class; 
+	 return $obj;
+	}
+	
+	
+	sub sTrue { my $s=shift; return $s->{cTrue}; }
+	sub sFalse { my $s=shift; return $s->{cFalse}; }
+	sub getLength { my $s=shift; return $s->{colsize}; }
+	sub addColArf { my ($s,$arf)=@_; 
+		if (scalar(@$arf) != $s->{colsize}) { 
+		say "Array size ". scalar(@$arf)." does not match ". $s->{colsize}; return;
+		} 
+		else { my $arfCols=$s->{cols}; push @$arfCols, $arf; }
+	}
+	sub getNthTuple { #human nth, 
+	 my ($s, $nth)=@_;
+	 my @aRVtuple=();
+	 if($nth > 0 && $nth <= $s->{colsize}) {
+		$nth -= 1; #adjust to zero-based nth
+		my $colArf=$s->{cols};
+		for my $COL (@$colArf) { push @aRVtuple, $COL->[$nth]; }		 
+	 }
+	 return \@aRVtuple; 
+	}
+	
+	sub getArfOfValTuples {    
+	 my $s=shift; 
+	 my @rvAry=();
+	 for my $idx (0..$s->{colsize}-1) { 
+		my @aTuple=();
+		my $colArf=$s->{cols};
+		for my $COL (@$colArf) { push @aTuple, $COL->[$idx]; }
+		push @rvAry, \@aTuple; 
+	 }
+	 return \@rvAry;
+	 
+	}
+
+};
+
 
 #package ordered associative array
 package cOrdict {
@@ -130,7 +178,6 @@ sub getColFromFile { #params: colnum, filename // colnum is human ordinal; split
 }
 
 #some subroutines
-
 sub mksqbracks { my $v=shift; return "[ $v ] " ; }
 sub mkDivider { my $val=shift; say "\n". 'x' x 80 . "_$val\n"; }
 sub doMsgArf { my $arf=shift; my @ary=@$arf; say mksqbracks($ary[0]). join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
@@ -159,7 +206,7 @@ sub doArgTest02 {
 	push @ary, @acmts; 
 	unshift @ary, mksqbracks(__LINE__); unshift @ary, "doArgTest02"; doMsgArf(\@ary);
 }
-sub typeinfo { 
+sub gettypeinfo { 
 	my $var=shift; 
 	if(ref($var)) { say "ref $var of type ". ref($var);  }
 	elsif(looks_like_number($var)) { say "$var of type number";  }
@@ -222,7 +269,6 @@ sub computeStnDev { #arg is a REFERENCE to an array of numbers;
 	return sqrt($m);
 }
 
-
 ###do integers differ by At Least One Order Of Magnitude
 sub isXgtYbyALOOM {
 	my ($x,$y)=@_;
@@ -243,6 +289,7 @@ sub FOOMFOI{ #Find Orders Of Magnitude From Ordered Integers
 }
 
 sub computeFrequency {
+	my $bDbg=1;
 	my $arf = shift;
 	my %rvH=();
 	my %freqH=();
@@ -250,15 +297,32 @@ sub computeFrequency {
 		if (exists $freqH{$i}) { $freqH{$i}++; }
 		else { $freqH{$i} = 1; }
 	}
-
-	my @orderedKeys = sort { $freqH{$a}<=>$freqH{$b} } keys %freqH;
+	say "@$arf";
+	#determine output order
+	my $orderMode=0; 
+	my @minmax=computeMinMax( [ values %freqH ] ); 
+	if( $minmax[0] == $minmax[1] ) { $orderMode=1; } #use original order
+	
+	my @orderedKeys=();
+	my @aSrtVals= reverse uniq sort { $a<=>$b } values %freqH; #note uniq sort 
+	
+	if($bDbg==1){ say "@aSrtVals";}
+	
+	for my $Val (@aSrtVals){ 
+		for my $vorig (uniq @$arf) { #note uniq
+		 if ($freqH{$vorig}==$Val) { push @orderedKeys, $vorig; }				
+		}
+	}
+	
 	$rvH{akorder}=\@orderedKeys;
+	if ($orderMode==1) { $rvH{akorder}=$arf; }
+	
 	$rvH{hdata}=\%freqH;
 
 	return \%rvH;
 }
 
-sub doSummaryCalcs { #params: arf , short description
+sub doSummaryCalcs {
 	
 		my ($arfNums,$taskdesc)=@_;
 		mkDivider(mksqbracks(__LINE__));
@@ -270,13 +334,13 @@ sub doSummaryCalcs { #params: arf , short description
 		}
 		
  		mkDivider(mksqbracks(__LINE__));
- 		say "sum= ". join(" + ",@$arfNums)." = ". computeSum($arfNums);
+ 		say "sum _ ". computeSum($arfNums) ." = ". join(" + ",@$arfNums) ;
 		my @amnmx=computeMinMax( [  keys %$hData ] );
 
-		say "minmax= ". join( " ;; ", @amnmx);	
-		say "mean = ". computeMean([ keys %$hData ]);
-		say "median = ". computeMedian([ keys %$hData ]);
-		say "standev = " . computeStnDev([ keys %$hData ]);
+		say "minmax _ ". join( " ;; ", @amnmx);	
+		say "mean _ ". computeMean([ keys %$hData ]);
+		say "median _ ". computeMedian([ keys %$hData ]);
+		say "standev _ " . computeStnDev([ keys %$hData ]);		
 
 		say mksqbracks(__LINE__) . " end $taskdesc array size ". scalar(@$arfNums);
 		mkDivider(mksqbracks(__LINE__));
@@ -350,3 +414,63 @@ sub readDATA { #param01: split on space "0" or split on comma "1" ;; param02: 2=
 	$dRVSet{arfsz}=scalar(@aRV);
 	return \%dRVSet;
 }
+
+
+sub sortAsVersInt { #versint is 2020.01.30 or 2020.2021.2022 &c
+ my $bDbg=1;
+ my ( $lside, $rside ) = @_;
+ if($bDbg){ say mksqbracks(__LINE__). " cmp $lside // $rside"; }
+ 
+ my @aryMsgs=();
+ my %dData= ( rvint=>0, lspcs=>0, rspcs=>0, arfmsgs=>\@aryMsgs );
+
+ my @lpcs=split(/\./,$lside); 
+ my @rpcs=split(/\./,$rside);
+ $dData{lspcs}=scalar(@lpcs); $dData{rspcs}=scalar(@rpcs);
+ if($bDbg){ say mksqbracks(__LINE__). " cmp $dData{lspcs} // $dData{rspcs}"; }
+ 
+ 
+ if($bDbg){ 
+  say mksqbracks(__LINE__). "dump array values:"; 
+  say "L ary = " . $dData{lspcs}; say join(" ;; ", @lpcs); 
+  say "R ary = " . $dData{rspcs}; say join(" ;; ", @rpcs); 
+  }
+ 
+ 
+ if( $dData{lspcs} == $dData{rspcs} ) {
+  if($bDbg){ say mksqbracks(__LINE__). " cmp equal sizes"; }
+  for (my $i=0; $i<=$#lpcs; $i++) {
+   if($lpcs[$i] < $rpcs[$i]) { $dData{rvint}=-1; last; }
+   elsif($lpcs[$i] > $rpcs[$i]) { $dData{rvint}=1; last; }
+  } # close for loop
+
+  if($bDbg){ say mksqbracks(__LINE__). "rv = $dData{rvint} , $lside , $rside"; }
+ }# close if test
+
+ elsif ( $dData{lspcs} > $dData{rspcs} ) {
+	 if($bDbg){ say mksqbracks(__LINE__). " cmp L > R"; }
+  for (my $i=0; $i<=$#rpcs; $i++) { # test up to end of rpcs
+   if($lpcs[$i] < $rpcs[$i]) { $dData{rvint}=-1; last; }
+   elsif($lpcs[$i] > $rpcs[$i]) { $dData{rvint}=1; last; }
+  }#close for loop
+ #test remaining values of lpcs IFF rvint==0
+  if($dData{rvint}==0) { for(my $i=scalar(@rpcs);$i<=$#lpcs;$i++){ if($lpcs[$i] > 0){$dData{rvint}=1; last;} } }
+  if($bDbg){ say mksqbracks(__LINE__). "rv = $dData{rvint} , $lside , $rside"; }
+ }#close elsif
+
+ elsif ( $dData{lspcs} < $dData{rspcs} ) {
+	 if($bDbg){ say mksqbracks(__LINE__). " cmp L < R"; }
+  for (my $i=0; $i<=$#lpcs; $i++) { # test up to end of lpcs
+   if($lpcs[$i] < $rpcs[$i]) { $dData{rvint}=-1; last; }
+   elsif($lpcs[$i] > $rpcs[$i]) { $dData{rvint}=1; last; }
+  }#close for loop
+#test remaining values of rpcs IFF rvint==0
+ if($dData{rvint}==0) { for(my $i=scalar(@lpcs);$i<=$#rpcs;$i++){ if($rpcs[$i] > 0){$dData{rvint}=1; last;} } }
+ if($bDbg){ say mksqbracks(__LINE__). "rv = $dData{rvint} , $lside , $rside"; }
+
+ }#close elsif
+ 
+ if($bDbg){ say mksqbracks(__LINE__). "rv = $dData{rvint} , $lside , $rside"; }
+ return $dData{rvint}; #return the int decision required by sort
+}##
+
