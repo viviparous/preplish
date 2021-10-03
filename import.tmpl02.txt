@@ -354,6 +354,7 @@ sub openFileRetArf { my $f=shift; my @ary=();
 	else { open( my $SF, "<", $f ); @ary=<$SF>; close($SF); 
 	 chomp(@ary);
 	 say "Read \"$f\" , line count ". scalar(@ary); 
+	 say "Tip: next you might: for my \$L (\@\$arf) { say \$L; }";
 	 return \@ary; 
 	}
 }

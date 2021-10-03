@@ -65,28 +65,6 @@ else
 fi
 
 
-includefile="import.tmpl01.txt"
-if [[ -e $includefile ]]; 
-then 
- msgincolour "Found $includefile, importing..."
- cat $includefile
- cat $includefile >> $tmpfile
- rv=$(perl -I . -c $tmpfile)
-
-	if [ $? -eq 0 ]
-	 then
-		cp $tmpfile $scratchfile
-		echo "Imported $includefile"
-
-	else 
-		echo "Error. Did not import $includefile"
-	fi
- 
-else
- msgincolour "No auto-import file $includefile found."
-fi
-
-
 declare -a cmdhistory
 
 #cmd verbs
@@ -332,6 +310,34 @@ function bFileIsValid () {
 	echo "$bRVcheck"
 
 }
+
+
+
+includefile="import.tmpl01.txt"
+if [[ -e $includefile ]]; 
+then 
+ msgincolour "Found $includefile, importing..."
+ cat $includefile
+ cat $includefile >> $tmpfile
+ rv=$(perl -I . -c $tmpfile)
+
+	if [ $? -eq 0 ]
+	 then
+		cp $tmpfile $scratchfile
+		echo "Imported $includefile"
+
+	else 
+		echo "Error. Did not import $includefile"
+	fi
+ 
+else
+ msgincolour "No auto-import file $includefile found."
+fi
+
+
+
+# # # START MAIN
+
 
 echo -e "\e[32m"
 echo -e "For help, type ${dcmdhelp[cmdhelp]}\nFor cmd details, type ${dcmdhelp[cmdhelpd]}\$cmdname.\nTo exit, type ${dcmdhelp[cmdquit]} or ${dcmdhelp[cmdexit]}\n"
