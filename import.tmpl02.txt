@@ -180,6 +180,7 @@ sub getColFromFile { #params: colnum, filename // colnum is human ordinal; split
 #some subroutines
 sub mksqbracks { my $v=shift; return "[ $v ] " ; }
 sub mkDivider { my $val=shift; say "\n". 'x' x 80 . "_$val\n"; }
+sub getkbinput { my $msg=shift; say $msg; my $kbStr=<STDIN>;chomp($kbStr); return $kbStr; } 
 sub doMsgArf { my $arf=shift; my @ary=@$arf; say mksqbracks($ary[0]). join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
 sub doArgTest01 { my @ary=@_; unshift @ary, mksqbracks(__LINE__); unshift @ary, "doArgTest01"; doMsgArf(\@ary);}
 sub doArgTest02 { 

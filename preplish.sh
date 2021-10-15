@@ -324,10 +324,10 @@ then
 	if [ $? -eq 0 ]
 	 then
 		cp $tmpfile $scratchfile
-		echo "Imported $includefile"
+		msgincolour "Imported $includefile"
 
 	else 
-		echo "Error. Did not import $includefile"
+		msgincolour "Error. Did not import $includefile"
 	fi
  
 else
@@ -357,9 +357,11 @@ do
 	read -ep '>>>: ' codeline
 	history -s "$codeline"
 	
-	subregex="sub [a-zA-Z0-9_]+\ *{\ *$"
-	forregex="for my [^[:space:]]+\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
-	whlregex="while\ *(\ *[^[:space:]]+\ *)\ *{\ *$"
+
+	subregex="^[[:space:]]*sub "
+	forregex="^[[:space:]]*for my "
+	whlregex="^[[:space:]]*while \( [^[:space:]]+ "
+	whleachregex="^[[:space:]]*while \( my \( [^[:space:]]+,[^[:space:]]+ )[[:space:]]*=[[:space:]]*each [^[:space:]]+ {"
 	podopnregex="^=pod"
 	podendregex="^=cut"
 
@@ -408,7 +410,7 @@ do
 
 	### BEGIN SUBFORWHILE MODE
 #	 if creating a subroutine or loop
-	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whlregex) && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
+	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whlregex || $codeline =~ $whleachregex) && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
 
 	 then 
 		if [[ $codeline =~ $subregex ]]; 
