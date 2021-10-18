@@ -9,6 +9,7 @@
 
 #https://misc.flogisoft.com/bash/tip_colors_and_formatting
 
+GLOBIGNORE="*"
 
 dts=$(date +"%Y.%m.%d_%H%M")
 fstem=_repl.pl
@@ -410,7 +411,7 @@ do
 
 	### BEGIN SUBFORWHILE MODE
 #	 if creating a subroutine or loop
-	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whlregex || $codeline =~ $whleachregex) && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
+	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whleachregex || $codeline =~ $whlregex ) && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
 
 	 then 
 		if [[ $codeline =~ $subregex ]]; 
@@ -439,7 +440,10 @@ do
 
 		if [ "$frv" -eq 1 ]; then
 		 cp $scratchfile $tmpfile
-		 if [[ dcntrlMode[bIsSubNotForL] -eq 1 ]]; then appendSubToSubrFile ; fi
+		 if [[ dcntrlMode[bIsSubNotForL] -eq 1 ]]; then 
+		  appendSubToSubrFile
+		  unset aSubrForL
+		 fi
 		 
 		else
 		 msgincolour "Invalid code, discarding..."
@@ -804,6 +808,6 @@ dataLC=$(wc -l $dataset | awk '{print $1}' )
 if [[ $dataLC -lt 2 ]]; then rm $dataset; fi
 cleartmpfiles
 history -w $0_cmds
-echo -e "\ncmd history:"
-showhistory
+#echo -e "\ncmd history:"
+#showhistory
 echo "Saved in file $tmpfile"
