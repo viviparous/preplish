@@ -411,7 +411,7 @@ do
 
 	### BEGIN SUBFORWHILE MODE
 #	 if creating a subroutine or loop
-	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whleachregex || $codeline =~ $whlregex ) && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
+	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whleachregex || $codeline =~ $whlregex ) && ! $codeline =~ }\ *$ && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
 
 	 then 
 		if [[ $codeline =~ $subregex ]]; 
