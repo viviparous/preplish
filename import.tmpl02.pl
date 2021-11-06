@@ -4,6 +4,7 @@ use warnings;
 use feature 'say';
 use Data::Dumper;
 use Scalar::Util qw(looks_like_number);
+use Time::Local qw( timelocal_posix );
 use List::Util qw( 
 head tail uniqstr uniqnum uniq pairs any all none notall first max maxstr min minstr product sum sum0 pairs pairkeys pairvalues shuffle 
 );
@@ -215,6 +216,31 @@ sub gettypeinfo {
 }	
 sub dec2hex { my $d=shift; return sprintf( "%x" , $d ); }
 sub padint { my $i=shift; if ($i<10){ return "  ".$i;} elsif ( $i < 100) { return " ".$i} else {return $i;} }
+
+sub getDayOfWeekNumExYMDarf { # return number of day of week from arf YYYY, MM, DD
+ my $bDbg=0;
+ my $arfYMD=shift;
+ my %dRV=(brvgood=>0,rv=>0);
+# sec min hours dd mm yyyy
+ my @LT=localtime( timelocal_posix(0,0,0,$arfYMD->[2],$arfYMD->[1]-1,$arfYMD->[0]-1900)) ;
+ if($bDbg==1) { say join(" ;; ",@LT); }
+ my $rv = $LT[6];
+ if($bDbg==1) { say "rv=$rv"; }
+ $dRV{brvgood}=1; $dRV{rv}=$rv;
+ return \%dRV;
+}
+
+
+sub getNumDaysInYear { # return the number of days in year from YYYY
+ my $yyyy=shift;
+ my %dRV=(brvgood=>0,rv=>0);
+ my $rv = (localtime(timelocal_posix(0,0,0,31,11,$yyyy-1900)) )[7];
+ $rv++; #increment zeroth day for count
+ $dRV{brvgood}=1; $dRV{rv}=$rv;
+ return \%dRV;
+}
+
+
 sub roundXtoYdecimals { my ($f , $dp) = @_; return sprintf("%.".$dp."f", $f); }
 sub mathround { my ($n, $p) = @_; return sprintf("%.${p}f", $n);} #arg array: float, precision
 sub mathfloor { my $n = shift; return mathGetIntegral($n); }
