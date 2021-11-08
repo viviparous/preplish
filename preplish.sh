@@ -27,6 +27,10 @@ subrfile=$tmpfile$subrfilesffx
 touch $subrfile
 chkpval=0
 tc001=1 
+startTm=$(date +%s)
+userLoops=0
+
+
 
 declare -a aTmpFiles	#add files to remove
 aTmpFiles+=($scratchfile)
@@ -325,7 +329,7 @@ then
 	if [ $? -eq 0 ]
 	 then
 		cp $tmpfile $scratchfile
-		msgincolour "Imported $includefile"
+		msgincolour "Imported $includefile . (File $includefile was found.)"
 
 	else 
 		msgincolour "Error. Did not import $includefile"
@@ -799,6 +803,7 @@ do
 	 fi
 	### END COMPILE and TEST MODE
 
+	userLoops=$(($userLoops+1))
 done
 
 subrforLC=$(wc -l $subrfile | awk '{print $1}' )
@@ -810,4 +815,9 @@ cleartmpfiles
 history -w $0_cmds
 #echo -e "\ncmd history:"
 #showhistory
-echo "Saved in file $tmpfile"
+endTm=$(date +%s)
+totalTmSecs=$(($endTm-$startTm))
+totalTmMins=$( awk -v v1="$totalTmSecs" -v v2=60 'BEGIN {OFMT="%.3f"; print (v1 / v2) }' )
+
+echo "Statistics: iCmds=$userLoops ;; editTime=$totalTmMins m"
+echo "Work saved in file $tmpfile"

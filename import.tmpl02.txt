@@ -96,11 +96,10 @@ package cZipCols {
 };
 
 
-#package ordered associative array
-package cOrdict {
+package cOrdict { #ordered associative array
 	sub new { 
 		my $class=shift; my @aKeys=(); my %dKeysVals=();
-		my $self = { uic=>$class."-".__LINE__."-".time , aKeys=>\@aKeys , dKeysVals=>\%dKeysVals , bDbg=>1 };
+		my $self = { uic=>$class."-".__LINE__."-".time , aKeys=>\@aKeys , dKeysVals=>\%dKeysVals , bDbg=>0 };
 		return bless $self, $class;
 	}
 	sub identify { my $self=shift; say "cOrdict ". $self->{uic};}
@@ -114,6 +113,9 @@ package cOrdict {
 		if($self->{bDbg}==1){ say $self->{uic}." hkcount was $phkcount, now ". scalar(keys %$hrf); }
 		
 	}
+	sub dbgOff { my $self=shift; $self->{bDbg}=0; }
+	sub dbgOn { my $self=shift; $self->{bDbg}=1; }
+	
 	sub getVofK { my ($self,$key)=@_; my $hrf=$self->{dKeysVals}; return $hrf->{$key}; }
 	sub getKeysArf { my $self=shift; return $self->{aKeys};  }
 	sub delKey { my ($self,$keydel)=@_; 
@@ -315,7 +317,7 @@ sub FOOMFOI{ #Find Orders Of Magnitude From Ordered Integers
 	return \@rv;
 }
 
-sub computeFrequency {
+sub computeFrequency { 
 	my $bDbg=1;
 	my $arf = shift;
 	my %rvH=();
@@ -349,7 +351,7 @@ sub computeFrequency {
 	return \%rvH;
 }
 
-sub doSummaryCalcs {
+sub doSummaryCalcs { #arg1 = arf of numbers ; arg2 = description of data
 	
 		my ($arfNums,$taskdesc)=@_;
 		mkDivider(mksqbracks(__LINE__));
@@ -386,7 +388,7 @@ sub openFileRetArf { my $f=shift; my @ary=();
 	}
 }
 
-sub listDATA {
+sub listDATA { #list data appended as __DATA__
 	my $data_start = tell DATA;
 	while (my $inline=<DATA>) { 
 		chomp($inline); next if not length $inline;  
@@ -404,7 +406,7 @@ sub listDATA {
 	}
 	seek DATA, $data_start, 0;
 }
-sub readDATA { #param01: split on space "0" or split on comma "1" ;; param02: 2=rv No ARF , 3=rv yield ARF
+sub readDATA { #read data appended as DATA , return HRF; param01: split on space "0" or split on comma "1" ;; param02: 2=rv No ARF , 3=rv yield ARF
 	my $data_start = tell DATA;
 	my @args=@_;
 
