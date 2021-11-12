@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use feature 'say';
 use Data::Dumper;
+use Digest::SHA qw(sha256_hex);
 use Scalar::Util qw(looks_like_number);
 use Time::Local qw( timelocal_posix );
 use List::Util qw( 
@@ -14,6 +15,8 @@ PREPLISH template file.
 Import and use. Make your own!
 =cut
 
+
+my $giENTRPY= 1 + int rand(time);
 
 
 # list args
@@ -45,6 +48,18 @@ else {
 	say mksqbracks(__LINE__). "Received command-line args: ". join(" // ", @aArgs);  
 	doArgTest01( @aArgs ) ; 
 	doArgTest02( @aArgs );
+	
+	if(scalar(@aArgs)%2==0) { # even number of args, store as K-V pairs
+		my %dKVp=();
+		my $iToggle=0;
+		while ( my ($idx,$a)=each @aArgs) {
+			if($iToggle==0) {
+			 $dKVp{$a}=0; $iToggle=1;
+			}
+			else { $dKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
+		}
+		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $dKVp{$_} } keys %dKVp);
+	}
 }
 
 package cZipCols {
@@ -98,11 +113,18 @@ package cZipCols {
 
 package cOrdict { #ordered associative array
 	sub new { 
-		my $class=shift; my @aKeys=(); my %dKeysVals=();
-		my $self = { uic=>$class."-".__LINE__."-".time , aKeys=>\@aKeys , dKeysVals=>\%dKeysVals , bDbg=>0 };
+		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=();
+		my $uicInt = ::getSHA(::getEntropyVal() + int rand(__LINE__) + int rand(time));
+		my $self = { uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , bDbg=>0 };
 		return bless $self, $class;
 	}
-	sub identify { my $self=shift; say "cOrdict ". $self->{uic};}
+	
+	sub dbgOff { my $self=shift; $self->{bDbg}=0; }
+	sub dbgOn { my $self=shift; $self->{bDbg}=1; }
+	
+	sub identify { my $self=shift; say "cOrdict ". substr($self->{uic}, 0, int (length($self->{uic})/2) ) . "... ";}	
+	sub identifyLong { my $self=shift; say "cOrdict ". $self->{uic};}
+
 	sub addKV { my ($self,$key,$value)=@_; 
 		if($self->{bDbg}==1){ say $self->{uic}." addKV $key , $value" ; }
 		my $arf=$self->{aKeys}; my $pkcount=scalar(@$arf); push @$arf,$key; 
@@ -113,11 +135,25 @@ package cOrdict { #ordered associative array
 		if($self->{bDbg}==1){ say $self->{uic}." hkcount was $phkcount, now ". scalar(keys %$hrf); }
 		
 	}
-	sub dbgOff { my $self=shift; $self->{bDbg}=0; }
-	sub dbgOn { my $self=shift; $self->{bDbg}=1; }
+	sub setKV { my ($self,$key,$value)=@_; 
+		if($self->{bDbg}==1){ say $self->{uic}." setKV $key , $value" ; }
+		my $hrf=$self->{dKeysVals}; my $phkcount=scalar(keys %$hrf);
+
+		if( exists $hrf->{$key} ) { 
+			my $preVal=$hrf->{$key}; 
+			$hrf->{$key}=$value;
+			if($self->{bDbg}==1){ say $self->{uic}." key $key was $preVal, now $value"; }        
+		}
+		else { say "key $key not found in ". $self->{uic}; }        
+	}
+
+	sub setRefData { my ($self, $refdata)=@_; $self->{dRefData}=$refdata; }
+	sub getRefData { my $self=shift; return $self->{dRefData}; }
 	
 	sub getVofK { my ($self,$key)=@_; my $hrf=$self->{dKeysVals}; return $hrf->{$key}; }
 	sub getKeysArf { my $self=shift; return $self->{aKeys};  }
+	sub getValsArf { my $self=shift; my $arf=$self->{aKeys}; my $drf=$self->{dKeysVals}; my @aRV = map { $drf->{$_} } @$arf ; return \@aRV; }
+	
 	sub delKey { my ($self,$keydel)=@_; 
 		my $hrf=$self->{dKeysVals}; my $arf=$self->{aKeys};
 		my @aNew=();
@@ -132,7 +168,9 @@ package cOrdict { #ordered associative array
 		}
 		else { say __LINE__. " ordAssocArry $hrf->{uic} cannot delete key $keydel . No such key."; }
 	}
-	sub listKeys { my $self=shift; my $arf=$self->{aKeys}; say $self->{uic}." keys: ". join(" ;; ", @$arf); }
+	sub listKeys { my $self=shift; my $arf=$self->{aKeys}; say $self->identify()." keys: ". join(" ;; ", @$arf); }
+	sub listValues { my $self=shift; my $arf=$self->{aKeys}; my $drf=$self->{dKeysVals}; say $self->identify()." values: ". join(" ;; ", map { $drf->{$_} } @$arf ); }
+	
 	sub getNthColArf { #return Nth value of all columns (key-arfs); adjust Nth for zero-based array
 		my ($self,$nth)=@_; my @aRV=(); my $arfKeys=$self->{aKeys}; my $hrfKcols=$self->{dKeysVals};
 		if($self->{bDbg}==1){ say $self->{uic}." getNthCol $nth" ; }
@@ -184,6 +222,8 @@ sub getColFromFile { #params: colnum, filename // colnum is human ordinal; split
 sub mksqbracks { my $v=shift; return "[ $v ] " ; }
 sub mkDivider { my $val=shift; say "\n". 'x' x 80 . "_$val\n"; }
 sub getkbinput { my $msg=shift; say $msg; my $kbStr=<STDIN>;chomp($kbStr); return $kbStr; } 
+sub getSHA { my $arg=shift; return sha256_hex($arg); }
+sub getEntropyVal { my $rv=$giENTRPY; $giENTRPY++; return $rv; }
 sub doMsgArf { my $arf=shift; my @ary=@$arf; say mksqbracks($ary[0]). join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
 sub doArgTest01 { my @ary=@_; unshift @ary, mksqbracks(__LINE__); unshift @ary, "doArgTest01"; doMsgArf(\@ary);}
 sub doArgTest02 { 
@@ -503,4 +543,42 @@ sub sortAsVersInt { #versint is 2020.01.30 or 2020.2021.2022 &c
  if($bDbg){ say mksqbracks(__LINE__). "rv = $dData{rvint} , $lside , $rside"; }
  return $dData{rvint}; #return the int decision required by sort
 }##
+
+
+sub getLongestSeq { #for each line in arf, split the characters and count occurrences
+	my $arfL=shift;
+	for my $L (@$arfL) { 
+	 my @aA=split(//,$L); say "$L = ". scalar(@aA); 
+	 my $oLO=cOrdict->new();
+	 
+	 #$oLO->dbgOn();
+
+	 while ( my ($idx,$aLttr)=each @aA) {
+		 $oLO->addKV($idx, $aLttr); #key is unq idx, val is char; char space is sha256
+	 }
+	 $oLO->identify();
+	 $oLO->listKeys();
+	 $oLO->listValues();
+	 my @aUSeq=(); my @aCurrSeq=();
+	 my $arfVals=$oLO->getValsArf();
+	 my %dSeen=();
+	 for my $Vchar (@$arfVals) {
+		 if(exists $dSeen{$Vchar}){ #drop seq if contains repeated symbol 
+			 if(scalar(@aCurrSeq) > scalar(@aUSeq)) { #capture seq if longest
+				 @aUSeq=@aCurrSeq; 
+			 }
+			 @aCurrSeq=(); #start new search
+			 push @aCurrSeq, $Vchar; #add first character
+			 %dSeen=(); #blank the list of seen
+		 } 
+		 else { push @aCurrSeq, $Vchar; }
+		 $dSeen{$Vchar}=1; 
+	 }
+	 say mksqbracks(__LINE__)." full sequence = ". join(" ;; ", @$arfVals);	
+	 say mksqbracks(__LINE__)." longest unique sequence = (". scalar(@aUSeq) .") ". join(" ;; ", @aUSeq);
+	 
+
+	}##
+}
+
 

@@ -819,5 +819,5 @@ endTm=$(date +%s)
 totalTmSecs=$(($endTm-$startTm))
 totalTmMins=$( awk -v v1="$totalTmSecs" -v v2=60 'BEGIN {OFMT="%.3f"; print (v1 / v2) }' )
 
-echo "Statistics: iCmds=$userLoops ;; editTime=$totalTmMins m"
+echo "Statistics: iStatements=$userLoops ;; editTime=$totalTmMins m"
 echo "Work saved in file $tmpfile"

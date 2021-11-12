@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use feature 'say';
 use Data::Dumper;
+use Digest::SHA qw(sha256_hex);
 use Scalar::Util qw(looks_like_number);
 use Time::Local qw( timelocal_posix );
 use List::Util qw( 
