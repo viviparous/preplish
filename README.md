@@ -34,6 +34,7 @@ This project aims to be a good|fun|easy REPL that has value for general programm
 
 
 ## Known Problems and Planned Features
+* if an imported module does not export a method mentioned in the qw(), the module may need to be updated using cpan or cpanminus 
 * add search highlight for given string
 * enable comment of a previous line or sequence of lines
 
