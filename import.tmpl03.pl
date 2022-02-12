@@ -62,6 +62,49 @@ else {
 	}
 }
 
+package cTypeBox {
+	sub new {
+		my ($class,$value)=@_;
+
+		my %dTypes=( null=>0, number=>1, string=>2 , ref=>3);
+		for my $t (keys %dTypes) { $dTypes{ $dTypes{$t} }=$t; } #provide look-ups like enum
+
+		my $boxtype=$dTypes{null};
+
+		my $fteval=sub { 
+			my $inval=shift; if(length($inval)==0){ return $dTypes{null}; } 
+			elsif(ref($inval)) { return $dTypes{ref};  } 
+			elsif(::looks_like_number($value)) { return $dTypes{number};  }
+			elsif(length($inval)>0) { return $dTypes{string}; } 
+		};
+	
+		$boxtype=&$fteval($value);
+		
+				
+		my $self={
+			uic=>$class ."_". ::getUIC(__LINE__), 
+			value=>$value,
+			type=>$boxtype,
+			hrfdtypes=>\%dTypes,
+			functeval=>$fteval,
+		};
+
+		my $obj=bless $self,$class;
+		return $obj;
+	}
+	
+	sub settype { my ($p,$t)=@_; my $hrf=$p->{hrfdtypes}; if(exists $hrf->{$t}) { $p->{type}=$t; } else { say "unknown type $t"; } }
+	sub gettypei { my $p=shift; return $p->{type}; }
+	sub gettypen { my $p=shift; my $hrf=$p->{hrfdtypes}; return $hrf->{$p->{type}}; }
+	sub getval { my $p=shift; return $p->{value}; }
+	sub getuic { my $p=shift; return $p->{uic}; }
+	sub setval { my ($p,$v)=@_; my $hrf=$p->{hrfdtypes}; my $f=$p->{functeval}; my $t=&$f($v); $p->{value}=$v; $p->{type}=$t; }
+	
+};
+
+
+
+
 package cZipCols {
 
 	sub new {
@@ -113,9 +156,9 @@ package cZipCols {
 
 package cOrdict { #ordered associative array
 	sub new { 
-		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=();
+		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=(); my @aHdrNyms=();
 		my $uicInt = ::getSHA(::getEntropyVal() + int rand(__LINE__) + int rand(time));
-		my $self = { uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , bDbg=>0 };
+		my $self = { uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , aHdrNyms=>\@aHdrNyms, bDbg=>0 };
 		return bless $self, $class;
 	}
 	
@@ -127,23 +170,29 @@ package cOrdict { #ordered associative array
 
 	sub addKV { my ($self,$key,$value)=@_; 
 		if($self->{bDbg}==1){ say $self->{uic}." addKV $key , $value" ; }
-		my $arf=$self->{aKeys}; my $pkcount=scalar(@$arf); push @$arf,$key; 
+		
+		my $arfHdrNyms=$self->{aHdrNyms};
+		push @$arfHdrNyms, $key;
+		
+		my $arf=$self->{aKeys}; my $pkcount=scalar(@$arf); my $pck=$pkcount."-".$key; push @$arf, $pck; 
 		if($self->{bDbg}==1){ say $self->{uic}." kcount was $pkcount, now ". scalar(@$arf); }
 		
 		my $hrf=$self->{dKeysVals}; my $phkcount=scalar(keys %$hrf);
-		$hrf->{$key}=$value; 
+		$hrf->{$pck}=$value; 
 		if($self->{bDbg}==1){ say $self->{uic}." hkcount was $phkcount, now ". scalar(keys %$hrf); }
 		
 	}
 	sub setKV { my ($self,$key,$value)=@_; 
 		if($self->{bDbg}==1){ say $self->{uic}." setKV $key , $value" ; }
 		my $hrf=$self->{dKeysVals}; my $phkcount=scalar(keys %$hrf);
+		
 
 		if( exists $hrf->{$key} ) { 
 			my $preVal=$hrf->{$key}; 
 			$hrf->{$key}=$value;
 			if($self->{bDbg}==1){ say $self->{uic}." key $key was $preVal, now $value"; }        
 		}
+		
 		else { say "key $key not found in ". $self->{uic}; }        
 	}
 
@@ -168,6 +217,8 @@ package cOrdict { #ordered associative array
 		}
 		else { say __LINE__. " ordAssocArry $hrf->{uic} cannot delete key $keydel . No such key."; }
 	}
+	
+	sub listHdrKeys { my $self=shift; my $arf=$self->{aHdrNyms}; say $self->identify()." header keys: ". join(" ;; ", @$arf); }	
 	sub listKeys { my $self=shift; my $arf=$self->{aKeys}; say $self->identify()." keys: ". join(" ;; ", @$arf); }
 	sub listValues { my $self=shift; my $arf=$self->{aKeys}; my $drf=$self->{dKeysVals}; say $self->identify()." values: ". join(" ;; ", map { $drf->{$_} } @$arf ); }
 	
@@ -222,6 +273,7 @@ sub getColFromFile { #params: colnum, filename // colnum is human ordinal; split
 sub mksqbracks { my $v=shift; return "[ $v ] " ; }
 sub mkDivider { my $val=shift; say "\n". 'x' x 80 . "_$val\n"; }
 sub getkbinput { my $msg=shift; say $msg; my $kbStr=<STDIN>;chomp($kbStr); return $kbStr; } 
+sub getUIC { my $arg=shift; return getSHA($arg ."_". (getEntropyVal() + int rand(__LINE__) + int rand(time)) ); }
 sub getSHA { my $arg=shift; return sha256_hex($arg); }
 sub getEntropyVal { my $rv=$giENTRPY; $giENTRPY++; return $rv; }
 sub doMsgArf { my $arf=shift; my @ary=@$arf; say mksqbracks($ary[0]). join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
