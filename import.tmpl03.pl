@@ -244,6 +244,58 @@ package cOrdict { #ordered associative array
 	}
 };
 
+
+
+package cCounter { #ordered associative array
+	sub new { 
+		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=(); my @aHdrNyms=();
+		my $uicInt = ::getSHA(::getEntropyVal() + int rand(__LINE__) + int rand(time));
+		my $self = { uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , aHdrNyms=>\@aHdrNyms, bDbg=>0 };
+		return bless $self, $class;
+	}
+	
+	sub dbgOff { my $self=shift; $self->{bDbg}=0; }
+	sub dbgOn { my $self=shift; $self->{bDbg}=1; }
+	
+	sub identify { my $self=shift; say "cOrdict ". substr($self->{uic}, 0, int (length($self->{uic})/2) ) . "... ";}	
+	sub identifyLong { my $self=shift; say "cOrdict ". $self->{uic};}
+
+	sub count { my ($self,$key)=@_; 
+		if($self->{bDbg}==1){ say $self->{uic}." count $key" ; }
+		
+		my $harf=$self->{dKeysVals};
+		
+		if(exists $harf->{$key}){ $harf->{$key}++ ; }
+		else { 
+			my $arf=$self->{aKeys};
+			push @$arf, $key;
+			$harf->{$key}=1;
+		}		
+	}
+
+	sub setRefData { my ($self, $refdata)=@_; $self->{dRefData}=$refdata; }
+	sub getRefData { my $self=shift; return $self->{dRefData}; }
+	
+	sub getVofK { my ($self,$key)=@_; my $hrf=$self->{dKeysVals}; return $hrf->{$key}; }
+	sub getKeysArf { my $self=shift; return $self->{aKeys};  }
+	sub getValsArf { my $self=shift; my $arf=$self->{aKeys}; my $drf=$self->{dKeysVals}; my @aRV = map { $drf->{$_} } @$arf ; return \@aRV; }
+	
+	
+	sub listHdrKeys { my $self=shift; my $arf=$self->{aHdrNyms}; say $self->identify()." header keys: ". join(" ;; ", @$arf); }	
+	sub listKeys { my $self=shift; my $arf=$self->{aKeys}; say $self->identify()." keys: ". join(" ;; ", @$arf); }
+	sub listValues { my $self=shift; my $arf=$self->{aKeys}; my $drf=$self->{dKeysVals}; say $self->identify()." values: ". join(" ;; ", map { $drf->{$_} } @$arf ); }
+	sub listByCountAsc {
+		my $self=shift; my $karf=$self->{aKeys}; 
+		my %d01=();
+		map { $d01{$_}=$self->getVofK($_) } @$karf;
+		
+		say $self->identify()." keys: ". join(" ;; ", map { $_."=".$d01{$_} } sort {$d01{$a}<=>$d01{$b}} keys %d01); 
+	}
+
+
+};
+
+
 #friendly subroutine interfaces
 sub help {
  my @aFuncs=("getColFromFile" , "doSummaryCalcs");	
