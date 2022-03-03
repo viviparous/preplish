@@ -507,7 +507,9 @@ sub doSummaryCalcs { #arg1 = arf of numbers ; arg2 = description of data
 		}
 		
  		mkDivider(mksqbracks(__LINE__));
- 		say "sum _ ". computeSum($arfNums) ." = ". join(" + ",@$arfNums) ;
+ 		my $sum=computeSum($arfNums);
+ 		say "sum _ $sum = ". join(" + ",@$arfNums) ;
+ 		say "% values _ ". join(" ;; ", map { "$_ (". ($_/$sum)*100 .")"  } @$arfNums) ;
 		my @amnmx=computeMinMax( [  keys %$hData ] );
 
 		say "minmax _ ". join( " ;; ", @amnmx);	
