@@ -62,7 +62,7 @@ else {
 	}
 }
 
-package cTypeBox {
+package cTypeBox { #simple box object for types
 	sub new {
 		my ($class,$value)=@_;
 
@@ -105,7 +105,7 @@ package cTypeBox {
 
 
 
-package cZipCols {
+package cZipCols { #combine two arrays of equal length
 
 	sub new {
 	 my ($class,$col1,$col2)=@_;
@@ -246,7 +246,7 @@ package cOrdict { #ordered associative array
 
 
 
-package cCounter { #ordered associative array
+package cCounter { #counter object
 	sub new { 
 		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=(); my @aHdrNyms=();
 		my $uicInt = ::getSHA(::getEntropyVal() + int rand(__LINE__) + int rand(time));
@@ -293,9 +293,275 @@ package cCounter { #ordered associative array
 	}
 
 
+
 };
 
+package cMatrix { #matrix object 
 
+	sub new {my ($class,$name)=@_;
+		my @ary=();
+		my @aryHdrs=();
+		my $self={
+		uic=>($name||$class) ."_". ::getUIC(__LINE__),
+		type=>$name||$class,
+		amain=>\@ary,
+		ahdrs=>\@aryHdrs,
+		width=>-1,
+		bStrict=>0,
+		bIsValidState=>1,
+		};
+	my $obj=bless $self,$class;
+	return $obj;
+	}
+	sub getType { my $p=shift; return $p->{type}; }
+	sub setHdrs {my ($p,$rarf)=@_; my $marf=$p->{ahdrs}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } for my $val (@$rarf) { push @aTmp, $val; } push @$marf, \@aTmp; $p->shape(); }
+	sub addRow {
+		my ($p,$rarf)=@_;  my $marf=$p->{amain}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } 
+		$p->setWidth($rarf); 
+		for my $val (@$rarf) { push @aTmp, $val; } 
+		push @$marf, \@aTmp; $p->shape(); 
+	}
+	sub addCol { 
+		my ($p,$carf)=@_; my $marf=$p->{amain}; 
+		if (scalar(@$carf)==scalar(@$marf) || scalar(@$marf)==0 ) { 
+			my @cnew=@$carf;
+			if( scalar(@$marf)==0 ) { 
+				for my $col (@cnew){
+					my @aTmp=();
+					push @aTmp, $col;
+					push @$marf, \@aTmp;
+				}
+			}
+			else { for my $arf (@$marf) { push @$arf, shift @cnew; } 
+				say "Added column ".join(" _ ", @$carf); $p->shape(); 
+			}
+		} 
+		else { say "Error: input size, col=".scalar(@$carf)." rows=".scalar(@$marf); $p->shape(); } 
+	}
+	sub getRowsArf { my $p=shift; return $p->{amain}; }
+	sub setRowsArf { my ($p,$arfM)=@_; # check shape, set valid
+		my %dChk=();
+		my $iErrors=0;
+		while ( my ($idxR, $rarf)=each @$arfM) { # struct "@ of \@"
+			$dChk{$idxR}=scalar(@$rarf);
+			for my $val (@$rarf) { 
+				if(! ::numtest($val) ){ $iErrors++; } ;
+			} 
+		}
+		my @aMinMax=sort { $a<=>$b } values %dChk;
+		#say ::mkstr([ __LINE__,"dbg:",join(" ;; ",@aMinMax)]);
+		if($iErrors==0 && $aMinMax[0] == $aMinMax[ $#aMinMax  ]) { 
+			say "matrix well-formed"; $p->{amain}=$arfM; $p->{bStateIsValid}=1; 
+			$p->{width}=$aMinMax[0];
+		}
+		else { 
+			say "matrix not well-formed, not saving. (errors=$iErrors)";
+			say "Row sizes: ". join(" , ", @aMinMax);  
+		} 
+	} 
+
+	sub getColsArf { 
+		my $p=shift; my %dRows=(); my @aRV=(); my $marf=$p->{amain};
+		my %dCols=();
+		while (my ($idxR,$arfR)=each @$marf) { #for each row
+			while (my ($idxC, $val)=each @$arfR) { #for each field in row
+				::addDictKeyIfNot(\%dCols,$idxC,$val);
+			}
+		}
+		@aRV=map { $dCols{$_} } sort { $a<=>$b } keys %dCols;
+		return \@aRV;  		
+	} 
+	sub getRowCount { my $sdoc="yield row count";
+	 my $p=shift; my $marf=$p->{amain}; return scalar(@$marf); 
+	}
+	sub getWidth { my $p=shift; return $p->{width} ; }
+	sub _getRowNarf { my $sdoc="return arf at row number";
+	 my ($p,$rn)=@_; my $marf=$p->{amain}; my $rvArf=$marf->[$rn];  return $rvArf; 
+	}
+	sub _getColNarf { my $sdoc="return arf at col number";
+	 my ($p,$cn)=@_; my $marf=$p->{amain}; my @aRV=(); 
+	 for my $arfR (@$marf) {
+		while ( my ($idx,$val)=each @$arfR){ if($idx == $cn) { push @aRV,$val;  } }
+	 }
+	 return \@aRV; 
+	}
+	
+	sub shape { my $p=shift; my $marf=$p->{amain}; say "Shape ".substr($p->{uic},0,14)."... "; $p->prHdrs(); say "Rows: ".scalar(@$marf); say "Width: ".$p->{width}; }	
+	sub mulx { my $sdoc="multiply by a scalar x";
+		my ($p,$mxv)=@_; if( ! ::numtest($mxv)){ say "NAN $mxv"; return; }  
+		my $marf=$p->{amain}; my @aTmp=();
+		for my $rw (@$marf) { for my $vv (@$rw){ if( ::numtest($vv) ) { $vv *= $mxv; } } }
+		$p->show();
+	}
+	sub mulcolxi { my $sdoc="multiply column by a scalar x, insert";
+		my ($p,$cidx,$mxv)=@_;
+		my $marf=$p->{amain}; my @aTmp=();
+		if( scalar(@$marf)==0){ say "Empty matrix"; return; }  
+		elsif( ! ::numtest($mxv)){ say "NAN $mxv"; return; }  
+		for my $rw (@$marf) { 
+			while ( my ($idxC,$vv)=each @$rw){ 
+				if( $idxC==$cidx-1 && ::numtest($vv) ) { push @aTmp, $vv * $mxv; } 
+			}
+		}
+		$p->addCol(\@aTmp);
+		$p->show();
+	}	
+	sub mulrowxi { my $sdoc="multiply row by a scalar x, insert";
+		my ($p,$ridx, $mxv)=@_; 
+		my $marf=$p->{amain}; my @aTmp=();
+		if( scalar(@$marf)==0){ say "Empty matrix"; return; }  
+		elsif( ! ::numtest($mxv)){ say "NAN $mxv"; return; }  
+		while (my ($idxR, $rw)=each @$marf) { 
+			if($idxR==$ridx-1){ 
+				for my $vv (@$rw){ if( ::numtest($vv) ) { push @aTmp, $vv * $mxv; } }
+				$p->addRow(\@aTmp);
+				last;
+			}			 
+		}
+		$p->show();
+	}		
+	sub togStrict { my $p=shift; $p->{bStrict}==0 ? $p->{bStrict}=1 : $p->{bStrict}=0; say $p->{uic}." strict mode = ". $p->{bStrict}; }
+	sub isStrict { my $p=shift; return $p->{bStrict}==0 ? 0 : 1; }
+	sub setWidth { my ($p,$arf)=@_; if(! $p->{length} || $p->{length}<=0){ $p->{width}= scalar(@$arf); } }
+	sub setIsValid { my ($p,$val)=@_; $p->{bIsValidState}= $val; } 
+	sub chkTypes { my ($p,$charf)=@_; my %dTypes=(i=>0,s=>0,o=>0); $p->msgWIP();  }	
+	sub exportToFile {my $p=shift;  $p->msgWIP(); }
+	sub mvColtoPos { my $p=shift; $p->msgWIP(); }
+	sub mvRowtoPos { my $sdoc="Move row to new position"; 
+		my ($p,$Rn,$Pn)=@_; my $marf=$p->{amain}; 
+		if($Rn==$Pn){ return; }
+		elsif($Rn>scalar(@$marf) || $Pn>scalar(@$marf)){ return; }
+
+		my %dRows=();
+		while ( my ($idxR,$arf)=each @$marf) {
+			$dRows{$idxR}=$arf; 
+		}
+		my $arfTmp=$dRows{$Pn};
+		$dRows{$Pn}=$dRows{$Rn};
+		$dRows{$Rn}=$arfTmp;
+		my @aTmp= map { $dRows{$_} } sort {$a<=>$b} keys %dRows ;
+		$p->{amain}=\@aTmp;  
+	}
+	sub shwCol { my $sdoc="shows column n";
+		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
+		my $width=$p->{width};
+		my %dCols=();
+		#build and use cols from rows	
+		while ( my ($idxR,$arf)=each @$marf) {
+			while ( my ($idxC,$val)=each @$arf ) {
+				if($idxC!=$colwant-1){ next; } 
+				$dCols{$idxR} = $val;
+			}
+		}
+		my $srtType=0;
+		if( defined($bSort) && ::numtest($bSort) && $bSort==1 ){ $srtType=1; }
+		say "Sort type $srtType";
+		if ($srtType==1){
+			say join("\n", map {$_."=".$dCols{$_} } sort { $dCols{$a}<=>$dCols{$b} } keys %dCols);
+		} else { say join("\n", map {$_."=".$dCols{$_} } sort { $a<=>$b } keys %dCols); }
+	}
+	sub getRowSigs { my $sdoc="ToDo: document";
+		my $p=shift; my $marf=$p->{amain};
+		my %hRV=();  
+		while ( my ($idxR,$arf)=each @$marf) {
+			$hRV{$idxR}=::getSHA($idxR.join("",@$arf));
+		}		
+		return \%hRV; 
+	}
+	
+	sub srtMtxByCol { my $sdoc="ToDo: document";
+		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
+		my %dSigtoVal=();
+		my %dSigtoRow=();
+		my $hMap=$p->getRowSigs();
+		#build and use cols from rows	
+		while ( my ($idxR,$arf)=each @$marf) {
+			while ( my ($idxC,$val)=each @$arf ) {
+				if($idxC!=$colwant-1){ next; } 
+				$dSigtoVal{$hMap->{$idxR}}=$val;
+				$dSigtoRow{$hMap->{$idxR}}=$arf;
+			}
+		}
+		
+		my $srtType=0;
+		if( defined($bSort) && ::numtest($bSort) && $bSort==1 ){ $srtType=1; }
+		say "Sort type $srtType";
+		
+		my @aNewRowSigOrd=();
+		
+		if($srtType==0) { @aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$a}<=>$dSigtoVal{$b} } keys %dSigtoVal; }
+		elsif($srtType==1) { @aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$b}<=>$dSigtoVal{$a} } keys %dSigtoVal; }
+		
+		for my $RSIG (@aNewRowSigOrd){
+			say substr($RSIG,0,7) ."... ($colwant) ". $dSigtoVal{$RSIG} ." , ". join(" _ ", @{$dSigtoRow{$RSIG}});
+		}	
+	}
+	
+	sub mulxVuntilXYcond { my $p=shift; my $sdoc="ToDo: document"; $p->msgWIP(); }		
+	sub delRow { my $sdoc="Delete row i";
+		my ($p,$idxD)=@_; my $marf=$p->{amain}; my @aRV=(); 
+		while ( my ($idx,$arf)=each @$marf ){ 
+			if($idx!=$idxD-1){ push @aRV, $arf; }
+			else { say "Delete row $idxD: ". join(" _ ", @$arf); }
+			$p->{amain}=\@aRV;
+		}
+	}
+	sub delCol { my $sdoc="Delete column i";
+	 my ($p,$colnum)=@_;
+		my $marf=$p->{amain}; 
+		if( scalar(@$marf)==0){ say "Empty matrix"; return; }  
+		elsif( ! ::numtest($colnum)){ say "NAN $colnum"; return; }  
+		my @aNew=();
+		for my $rw (@$marf) { 
+			my @aTmp=();
+			while ( my ($idxC,$vv)=each @$rw){ 
+				if( $idxC!=$colnum-1 ) { push @aTmp, $vv; } 
+			}
+			push @aNew, \@aTmp;			
+		}
+		$p->{amain}=\@aNew;
+		$p->show();
+	}
+		
+	sub shwMinMax { my $p=shift; my $marf=$p->{amain};  
+		my @aAccum=(); 
+		for my $R (@$marf){ 
+		 my @aVals= sort { $a<=>$b } @$R;
+		 push @aAccum, $aVals[0];
+		 push @aAccum, $aVals[$#aVals]; 
+		}
+		@aAccum=sort { $a<=>$b } @aAccum;
+		say "Min _ ". $aAccum[0];
+		say "Max _ ". $aAccum[$#aAccum];
+	}		
+	sub msgWIP { my $p=shift; say $p->{uic}." not yet implemented."; }	
+	sub prHdrs { my $p=shift; if($p->{width}<=0){ return; } my @ah=(); my $hdarf=$p->{ahdrs}; if(scalar(@$hdarf)==0){ @ah=@$hdarf;  } else { @ah=map{ $_ } 1..($p->{width}); say join( " _ ", @ah);}  }	
+	sub show { my $p=shift; my $marf=$p->{amain}; say '='x13; $p->prHdrs(); for my $arf (@$marf) { say join( " _ ", @$arf);  } $p->shape(); say '='x13; }
+
+	sub importFileData { my $sdoc="data = rows of space-separated values";
+		say $sdoc;  
+		my ($p,$fname)=@_; 
+		if ( ! -e $fname ) { say "$fname not found."; return; }
+		my $marf=$p->{amain};
+		open(my $fh, '<', $fname);
+		my @aFL=<$fh>;
+		chomp(@aFL);
+		my %dStats=(); 
+		while ( my ($idx,$L)=each @aFL) { 
+			my @aPcs=split(/ +/,$L); $dStats{$idx}=\@aPcs; 
+			if( $p->{width} <1 ){ $p->setWidth(\@aPcs);   } 
+			elsif( $p->{width}!= scalar(@aPcs) ){ say "import warning, row $idx"; }		
+			push @$marf,\@aPcs; 
+		}
+		say "Import statistics"; 
+		for my $k (sort { $a<=>$b} keys %dStats){ 
+			say "Length $k=".scalar( @{$dStats{$k}} ); 
+		}
+	 }
+
+};
+
+#subroutines 
 #friendly subroutine interfaces
 sub help {
  my @aFuncs=("getColFromFile" , "doSummaryCalcs");	
@@ -321,13 +587,20 @@ sub getColFromFile { #params: colnum, filename // colnum is human ordinal; split
 	return \@aVals;
 }
 
-#some subroutines
 sub mksqbracks { my $v=shift; return "[ $v ] " ; }
 sub mkDivider { my $val=shift; say "\n". 'x' x 80 . "_$val\n"; }
 sub getkbinput { my $msg=shift; say $msg; my $kbStr=<STDIN>;chomp($kbStr); return $kbStr; } 
 sub getUIC { my $arg=shift; return getSHA($arg ."_". (getEntropyVal() + int rand(__LINE__) + int rand(time)) ); }
 sub getSHA { my $arg=shift; return sha256_hex($arg); }
 sub getEntropyVal { my $rv=$giENTRPY; $giENTRPY++; return $rv; }
+sub numtest { my $n=shift; my $rv=0; if(looks_like_number($n)){ $rv=1; } return $rv; }
+sub bAreAllNumbers { my $arf; my $nint=0; my $bRV=0; map { $nint++ if(! numtest($_) ) } @$arf; $nint > 0 ? $bRV=0 : $bRV=1; return $bRV; }  
+sub addDictKeyIfNot { my $sdoc="Add/update key to dict of arrays";
+	my ($hrf,$key,$val)=@_;				
+	if( exists $hrf->{$key}) { my $arf=$hrf->{$key}; push @$arf, $val; }
+	else { my @aTmp=(); push @aTmp, $val; $hrf->{$key}=\@aTmp; }
+}
+sub mkstr { my $arf=shift; return join(" ", @$arf); }
 sub doMsgArf { my $arf=shift; my @ary=@$arf; say mksqbracks($ary[0]). join(" , ",@ary[1..$#ary]);} #where ary[0] is caller __LINE__, for example
 sub doArgTest01 { my @ary=@_; unshift @ary, mksqbracks(__LINE__); unshift @ary, "doArgTest01"; doMsgArf(\@ary);}
 sub doArgTest02 { 
@@ -362,6 +635,80 @@ sub gettypeinfo {
 }	
 sub dec2hex { my $d=shift; return sprintf( "%x" , $d ); }
 sub padint { my $i=shift; if ($i<10){ return "  ".$i;} elsif ( $i < 100) { return " ".$i} else {return $i;} }
+
+
+sub mulmxm { my $sDoc="multiply one matrix by another matrix, yield a matrix";
+	my $bDBG=0;
+	say mkstr([__LINE__,$sDoc]);
+	my ($oM1,$oM2)=@_;
+	my $oRVM=cMatrix->new; 
+	if($oM1->getType() ne $oM2->getType() ) { 
+		say mkstr( [__LINE__, "Error:", $oM1->getType()." ne ".$oM2->getType()]); 
+		return $oRVM;
+	}
+	my $arfM1=$oM1->getRowsArf;
+	my $arfM1asCols=$oM1->getColsArf;
+	
+	my $arfM2asRows=$oM2->getRowsArf;
+	my $arfM2=$oM2->getColsArf;
+	my %dRV=();
+	my $iErrors=0;
+#	say mkstr([__LINE__,"section:checks"]);
+	
+	#invariant: compare arfM1, arfM2
+	my ($cmpLARF1, $cmpLARF2)=( scalar(@$arfM1asCols), scalar(@$arfM2asRows) );
+#	my ($cmpLARF1, $cmpLARF2)=( scalar(@$arfM1asCols), scalar(@$arfM2) );
+
+	if($cmpLARF1 != $cmpLARF2){ say mkstr([__LINE__,"Error,","m1 row length $cmpLARF1 :=: m2 column height $cmpLARF2"   ]); $iErrors++; }
+	
+	
+	my %dM1=();
+	while (my($idxM1R,$rarfM1)=each @$arfM1){ $dM1{$idxM1R}=scalar(@$rarfM1);} 
+	my @aRcountsM1=sort { $a<=>$b } values %dM1 ;
+#	say __LINE__." checks: ". join(" , ", @aRcountsM1);
+	if($aRcountsM1[0] ne $aRcountsM1[$#aRcountsM1]){ $iErrors++; } 
+	
+	my %dM2=();
+	while (my($idxM2C,$rarfM2)=each @$arfM1){ $dM2{$idxM2C}=scalar(@$rarfM2);} 
+	my @aRcountsM2=sort { $a<=>$b } values %dM2 ;
+#	say "checks: ". join(" , ", @aRcountsM2);
+	if($aRcountsM2[0] ne $aRcountsM2[$#aRcountsM2]){ $iErrors++; } 
+	if($iErrors==0 && $aRcountsM1[0] ne $aRcountsM2[0]){ $iErrors++; } 
+	if($iErrors>0){ say mkstr( [__LINE__, "Errors $iErrors", $oM1->getType()." and ".$oM2->getType()]); }
+	else { say mkstr( [__LINE__, "Checked!", $oM1->getType()." and ".$oM2->getType()]); }
+	
+	if(scalar(@$arfM1)!=scalar(@$arfM2)){ $iErrors++; }
+	
+	#section:multiply
+	if($iErrors==0){
+		#for each M1row create an MRVcol => =DEF for each M2col create an MRVrow 
+#		for my $rowrfM1 (@$arfM1){#for each M1 row
+		while( my ($idxRARF, $rowrfM1)=each @$arfM1){#for each M1 row
+			my $rwSzZrB=scalar(@$rowrfM1)-1;
+			#say mkstr([ __LINE__,"Rsz",scalar(@$rowrfM1)]); 			
+			while ( my ($idxCARF,$carf)=each @$arfM2){ #take each colarf
+				my @aAccum=();
+				for my $rc (0..$rwSzZrB){ 
+					#say mkstr([ __LINE__,"R=$rc","C=$idxCARF",$rowrfM1->[$rc]." x ". $carf->[$rc] , "L(aAccum)=".scalar(@aAccum)]); 
+					push @aAccum, $rowrfM1->[$rc] * $carf->[$rc];
+				}
+				addDictKeyIfNot(\%dRV,$idxRARF,sum(@aAccum));
+
+			} 
+
+		}
+#		say mkstr( [ __LINE__, "DBG:", join(" ;; ",sort { $a<=>$b } keys %dRV) ]);
+		my @aRV=map { $dRV{$_} } sort { $a<=>$b } keys %dRV;
+		$oRVM->setRowsArf(\@aRV);		
+	}
+	else { 	
+		say mkstr( [__LINE__, "Errors $iErrors", $oM1->getType()." and ".$oM2->getType()]);
+		$oM1->show; $oM2->show; 
+	} 
+		
+
+	return $oRVM;	
+}
 
 sub getDayOfWeekNumExYMDarf { # return number of day of week from arf YYYY, MM, DD
  my $bDbg=0;
@@ -498,6 +845,7 @@ sub computeFrequency {
 sub doSummaryCalcs { #arg1 = arf of numbers ; arg2 = description of data
 	
 		my ($arfNums,$taskdesc)=@_;
+		if( ! defined($taskdesc) ){ $taskdesc="summary calculations"; }
 		mkDivider(mksqbracks(__LINE__));
 		say mksqbracks(__LINE__). " begin $taskdesc array size ". scalar(@$arfNums) ;
 		my $hResponse = computeFrequency($arfNums);
@@ -509,7 +857,12 @@ sub doSummaryCalcs { #arg1 = arf of numbers ; arg2 = description of data
  		mkDivider(mksqbracks(__LINE__));
  		my $sum=computeSum($arfNums);
  		say "sum _ $sum = ". join(" + ",@$arfNums) ;
- 		say "% values _ ". join(" ;; ", map { "$_ (". ($_/$sum)*100 .")"  } @$arfNums) ;
+ 		my %dPCG=();
+ 		say "% values in place _ ". join(" ;; ", map { "$_ (". ($_/$sum)*100 .")"  } @$arfNums) ;
+ 		map { $dPCG{$_}=($_/$sum)*100 } @$arfNums ;
+ 		say "% values sorted _ ". join(" ;; ", map { "$_ (". $dPCG{$_} .")"  } sort {$dPCG{$b}<=>$dPCG{$a}} keys %dPCG );  
+
+ 		
 		my @amnmx=computeMinMax( [  keys %$hData ] );
 
 		say "minmax _ ". join( " ;; ", @amnmx);	
@@ -649,7 +1002,6 @@ sub sortAsVersInt { #versint is 2020.01.30 or 2020.2021.2022 &c
  if($bDbg){ say mksqbracks(__LINE__). "rv = $dData{rvint} , $lside , $rside"; }
  return $dData{rvint}; #return the int decision required by sort
 }##
-
 
 sub getLongestSeq { #for each line in arf, split the characters and count occurrences
 	my $arfL=shift;
