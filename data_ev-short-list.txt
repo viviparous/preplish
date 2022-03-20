@@ -1,0 +1,13 @@
+#Manufacturer EV-Name capkWh eRangeKM Seats
+BMW i3-2019 42 345 2
+Fiat 500E 24 135 2
+Nissan LEAF 40 220 4
+Mitsubishi iMiEV 16 85 2
+Smart 2018-ED 17.5 100 2
+Tesla S60 60 275 4
+Tesla S85 90 360 4
+Tesla 3 75 496 4
+GM Bolt 60 383 4
+Toyota Prius-Prime 9 40 4 
+Honda Clarity 17.5 80 4
+
