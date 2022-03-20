@@ -425,7 +425,27 @@ package cMatrix { #matrix object
 	sub setWidth { my ($p,$arf)=@_; if(! $p->{length} || $p->{length}<=0){ $p->{width}= scalar(@$arf); } }
 	sub setIsValid { my ($p,$val)=@_; $p->{bIsValidState}= $val; } 
 	sub chkTypes { my ($p,$charf)=@_; my %dTypes=(i=>0,s=>0,o=>0); $p->msgWIP();  }	
-	sub exportToFile {my $p=shift;  $p->msgWIP(); }
+	sub exportToFile { my $sdoc="Save matrix data to a file";
+		my ($p,$fn)=@_;
+		my $fnshort=substr($p->{uic},0,14)."-";
+		
+		if(! defined($fn)){ $fn=$fnshort.::getDTPrefix(); }  
+		else { $fn=~s/ +/-/g ; $fn=$fnshort.::getDTPrefix().$fn."_"; }
+		my $iC=0;
+		my $ext="_export.txt";
+		my $fnout=$fn.$iC.$ext;
+		while ( -e $fnout ) { $iC++; $fnout=$fn.$iC.$ext ; }
+		
+		open(my $fh, '>', $fnout);
+		my $marf=$p->{amain};
+		
+		if(scalar(@$marf)>0) {
+			for my $arfR (@$marf){ say $fh join(" ",@$arfR); }
+			close($fh);
+			say "Data exported to file $fnout .";
+		}
+		else { say __LINE__. "$fn is empty."; }
+	}
 	sub mvColtoPos { my $p=shift; $p->msgWIP(); }
 	sub mvRowtoPos { my $sdoc="Move row to new position"; 
 		my ($p,$Rn,$Pn)=@_; my $marf=$p->{amain}; 
@@ -536,7 +556,24 @@ package cMatrix { #matrix object
 	}		
 	sub msgWIP { my $p=shift; say $p->{uic}." not yet implemented."; }	
 	sub prHdrs { my $p=shift; if($p->{width}<=0){ return; } my @ah=(); my $hdarf=$p->{ahdrs}; if(scalar(@$hdarf)==0){ @ah=@$hdarf;  } else { @ah=map{ $_ } 1..($p->{width}); say join( " _ ", @ah);}  }	
-	sub show { my $p=shift; my $marf=$p->{amain}; say '='x13; $p->prHdrs(); for my $arf (@$marf) { say join( " _ ", @$arf);  } $p->shape(); say '='x13; }
+	sub show { my $p=shift; my $bDbg=0; my $marf=$p->{amain}; 
+		say '='x13; $p->prHdrs(); 
+		my $carf=$p->getColsArf;
+		my %dCoLn=();
+		
+		while( my ($idxC,$arfC)=each @$carf) {
+			$dCoLn{$idxC}= ::max ( map { length($_) } @$arfC );			
+		}
+		
+		if($bDbg){ say ::Dumper(\%dCoLn); }
+		
+		for my $arfR (@$marf) { 
+			my @ary=@$arfR;
+			my @aJ= map { (length($ary[$_]) < $dCoLn{$_} ) ? "*" x ( $dCoLn{$_} - length($ary[$_]) ) . $ary[$_] : $ary[$_]  } 0..$#ary ;
+			say join(" _ ", @aJ);
+		} 
+		$p->shape(); say '='x13; 
+	}
 
 	sub importFileData { my $sdoc="data = rows of space-separated values";
 		say $sdoc;  
@@ -547,7 +584,8 @@ package cMatrix { #matrix object
 		my @aFL=<$fh>;
 		chomp(@aFL);
 		my %dStats=(); 
-		while ( my ($idx,$L)=each @aFL) { 
+		while ( my ($idx,$L)=each @aFL) {
+			if(length($L)==0 || $L=~/^\s+$/){ say "empty line in data ($idx) ."; next; } 
 			my @aPcs=split(/ +/,$L); $dStats{$idx}=\@aPcs; 
 			if( $p->{width} <1 ){ $p->setWidth(\@aPcs);   } 
 			elsif( $p->{width}!= scalar(@aPcs) ){ say "import warning, row $idx"; }		
@@ -708,6 +746,17 @@ sub mulmxm { my $sDoc="multiply one matrix by another matrix, yield a matrix";
 		
 
 	return $oRVM;	
+}
+sub getDTPrefix {
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime;
+	$mon = $mon +1; #0 based
+	if($mon < 10){$mon = "0".$mon;}
+	if($mday < 10){$mday = "0".$mday;}
+	if($hour < 10){$hour = "0".$hour;}
+	if($min < 10){$min = "0".$min;}
+	if($sec < 10){$sec = "0".$sec;}
+	my $tst = $year+1900 . "-" . $mon . "-" . $mday . "_" . $hour . $min . "-" .  $sec;
+	return $tst;	
 }
 
 sub getDayOfWeekNumExYMDarf { # return number of day of week from arf YYYY, MM, DD
