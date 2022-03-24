@@ -86,6 +86,9 @@ dcmdhelp[cmdrunfwargs]="cmdrunfwargs "		#run a specific function with arguments
 dcmdhelp[cmdrwparms]="cmdrwparms "			#run existing code with @args 
 dcmdhelp[cmdlsmods]=cmdlsmods			#cpan list installed
 dcmdhelp[cmdlsmodsgrep]=cmdlsmodsgrep	#cpan list | grep str
+dcmdhelp[cmdgrepf]="cmdgrepf "			#grep --colour -Hn param somefile
+dcmdhelp[cmdigrepf]="cmdigrepf "		#grep --colour -Hin param somefile
+dcmdhelp[cmdhilif]="cmdhilif "			#grep --colour -iE "val|$" somefile ## highlight value
 dcmdhelp[cmdshowc]=cmdshowc				#list current code
 dcmdhelp[cmdchkp]=cmdchkp				#save a copy of current code as a "checkpoint" file
 dcmdhelp[cmdcatf]="cmdcatf "			#cat named file
@@ -661,7 +664,40 @@ do
 			gstr=$(echo $codeline | awk '{print $2}')
 			cpan -l | grep -i $gstr 
 		fi
-		continue		
+		continue
+
+	elif [[ $codeline =~ ${dcmdhelp[cmdhilif]} ]];
+	 then
+		cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $cntParams -eq 3 ]]; 
+		then
+		 srchstr=$(echo $codeline | awk '{print $2,$3}')
+   		 echo "received $srchstr"
+		 p1=$(echo $codeline | awk '{print $2}')
+		 p2=$(echo $codeline | awk '{print $3}')   		 
+		 grep --colour -iE "$p1|$" $p2
+		fi
+		continue	
+
+
+		
+	elif [[ $codeline =~ ${dcmdhelp[cmdgrepf]} || $codeline =~ ${dcmdhelp[cmdigrepf]} ]];
+	 then
+		cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $cntParams -eq 3 ]]; 
+		then
+		 srchstr=$(echo $codeline | awk '{print $2,$3}')
+   		 echo "received $srchstr"
+
+		 if [[ $codeline =~ ${dcmdhelp[cmdgrepf]} ]] ; 
+		 then
+			grep --colour -Hn $srchstr
+		 elif [[ $codeline =~ ${dcmdhelp[cmdigrepf]} ]] ;
+		 then
+			grep --colour -Hin $srchstr		 
+		 fi
+		fi
+		continue	
 		
 	elif [[ $codeline =~ ${dcmdhelp[cmdimport]} ]];
 	 then

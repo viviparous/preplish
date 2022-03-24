@@ -158,15 +158,15 @@ package cOrdict { #ordered associative array
 	sub new { 
 		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=(); my @aHdrNyms=();
 		my $uicInt = ::getSHA(::getEntropyVal() + int rand(__LINE__) + int rand(time));
-		my $self = { uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , aHdrNyms=>\@aHdrNyms, bDbg=>0 };
+		my $self = { oClass=>$class, uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , aHdrNyms=>\@aHdrNyms, bDbg=>0 };
 		return bless $self, $class;
 	}
 	
 	sub dbgOff { my $self=shift; $self->{bDbg}=0; }
 	sub dbgOn { my $self=shift; $self->{bDbg}=1; }
 	
-	sub identify { my $self=shift; say "cOrdict ". substr($self->{uic}, 0, int (length($self->{uic})/2) ) . "... ";}	
-	sub identifyLong { my $self=shift; say "cOrdict ". $self->{uic};}
+	sub identify { my $self=shift; say $self->{oClass}. " ". substr($self->{uic}, 0, int (length($self->{uic})/2) ) . "... ";}	
+	sub identifyLong { my $self=shift; say $self->{oClass}. " ". $self->{uic};}
 
 	sub addKV { my ($self,$key,$value)=@_; 
 		if($self->{bDbg}==1){ say $self->{uic}." addKV $key , $value" ; }
@@ -250,15 +250,15 @@ package cCounter { #counter object
 	sub new { 
 		my $class=shift; my @aKeys=(); my %dKeysVals=(); my %dRefData=(); my @aHdrNyms=();
 		my $uicInt = ::getSHA(::getEntropyVal() + int rand(__LINE__) + int rand(time));
-		my $self = { uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , aHdrNyms=>\@aHdrNyms, bDbg=>0 };
+		my $self = { oClass=>$class, uic=>$class."-".$uicInt , aKeys=>\@aKeys , dRefData=>\%dRefData , dKeysVals=>\%dKeysVals , aHdrNyms=>\@aHdrNyms, bDbg=>0 };
 		return bless $self, $class;
 	}
 	
 	sub dbgOff { my $self=shift; $self->{bDbg}=0; }
 	sub dbgOn { my $self=shift; $self->{bDbg}=1; }
 	
-	sub identify { my $self=shift; say "cOrdict ". substr($self->{uic}, 0, int (length($self->{uic})/2) ) . "... ";}	
-	sub identifyLong { my $self=shift; say "cOrdict ". $self->{uic};}
+	sub identify { my $self=shift; say $self->{oClass}. " ". substr($self->{uic}, 0, int (length($self->{uic})/2) ) . "... ";}	
+	sub identifyLong { my $self=shift; say $self->{oClass}. " ". $self->{uic};}
 
 	sub count { my ($self,$key)=@_; 
 		if($self->{bDbg}==1){ say $self->{uic}." count $key" ; }
@@ -358,6 +358,17 @@ package cMatrix { #matrix object
 			say "matrix not well-formed, not saving. (errors=$iErrors)";
 			say "Row sizes: ". join(" , ", @aMinMax);  
 		} 
+	} 
+	sub getCol { 
+		my ($p,$c)=@_; 
+		my $carf=$p->getColsArf;
+		my @aRV=();
+		my $cwidth=scalar(@$carf);
+		my $errors=0;
+		if( $cwidth==0 || $c<1 || $c>$cwidth) { say "Problem with value $c . Column count is $cwidth ."; $errors++; }
+
+		if($errors==0){ @aRV= @{$carf->[$c-1]}; }
+		return \@aRV;  		
 	} 
 
 	sub getColsArf { 
@@ -553,7 +564,28 @@ package cMatrix { #matrix object
 		@aAccum=sort { $a<=>$b } @aAccum;
 		say "Min _ ". $aAccum[0];
 		say "Max _ ". $aAccum[$#aAccum];
-	}		
+	}
+
+	sub addColSums {   	#sum all COLUMNS as bottom row 
+	 my $p=shift; my $marf=$p->{amain}; 
+	 if(scalar(@$marf)==0){ return; }
+	 my $carf=$p->getColsArf;
+	 my @aColSums=();
+	 for my $arfC (@$carf) { push @aColSums, ::sum(@$arfC); }
+	 $p->addRow(\@aColSums);		
+	 $p->show;
+	
+	}
+	sub addRowSums {    #sum all ROWS on the right as column 
+	 my $p=shift; my $marf=$p->{amain}; 
+	 if(scalar(@$marf)==0){ return; }
+	 my @aSumCol=();
+	 for my $arfR (@$marf) { push @aSumCol, ::sum(@$arfR); }
+	 $p->addCol(\@aSumCol);	
+	 $p->show;	
+	}
+	
+			
 	sub msgWIP { my $p=shift; say $p->{uic}." not yet implemented."; }	
 	sub prHdrs { my $p=shift; if($p->{width}<=0){ return; } my @ah=(); my $hdarf=$p->{ahdrs}; if(scalar(@$hdarf)==0){ @ah=@$hdarf;  } else { @ah=map{ $_ } 1..($p->{width}); say join( " _ ", @ah);}  }	
 	sub show { my $p=shift; my $bDbg=0; my $marf=$p->{amain}; 
@@ -906,12 +938,14 @@ sub doSummaryCalcs { #arg1 = arf of numbers ; arg2 = description of data
  		mkDivider(mksqbracks(__LINE__));
  		my $sum=computeSum($arfNums);
  		say "sum _ $sum = ". join(" + ",@$arfNums) ;
+  		mkDivider(mksqbracks(__LINE__));		
  		my %dPCG=();
  		say "% values in place _ ". join(" ;; ", map { "$_ (". ($_/$sum)*100 .")"  } @$arfNums) ;
+  		mkDivider(mksqbracks(__LINE__));		
  		map { $dPCG{$_}=($_/$sum)*100 } @$arfNums ;
  		say "% values sorted _ ". join(" ;; ", map { "$_ (". $dPCG{$_} .")"  } sort {$dPCG{$b}<=>$dPCG{$a}} keys %dPCG );  
 
- 		
+ 		mkDivider(mksqbracks(__LINE__)); 		
 		my @amnmx=computeMinMax( [  keys %$hData ] );
 
 		say "minmax _ ". join( " ;; ", @amnmx);	
