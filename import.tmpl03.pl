@@ -315,6 +315,7 @@ package cMatrix { #matrix object
 	}
 	sub getType { my $p=shift; return $p->{type}; }
 	sub setHdrs {my ($p,$rarf)=@_; my $marf=$p->{ahdrs}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } for my $val (@$rarf) { push @aTmp, $val; } push @$marf, \@aTmp; $p->shape(); }
+	sub bIsEmpty {my $p=shift; my $marf=$p->{amain}; my $rv=0; if( scalar(@$marf)==0){ $rv=1; } return $rv; }
 	sub addRow {
 		my ($p,$rarf)=@_;  my $marf=$p->{amain}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } 
 		$p->setWidth($rarf); 
@@ -499,8 +500,45 @@ package cMatrix { #matrix object
 		}		
 		return \%hRV; 
 	}
+
 	
-	sub srtMtxByCol { my $sdoc="ToDo: document";
+	sub shwDecilesColi { my $sdoc="show deciles for column i";
+		#select column; map values to deciles
+		my ($p,$ci)=@_;
+		my %dCstats=();
+		my $col=$p->getCol($ci); $dCstats{cmax}= ::max(@$col); $dCstats{cmin}= ::min(@$col);
+		my ($hSgToVal, $hSgToRow)=$p->_getMtxMapColi($ci);
+
+		my @aNewRowSigOrd= map { $_ } sort { $hSgToVal->{$a}<=>$hSgToVal->{$b} } keys %$hSgToVal; 
+		
+		my %dDecGrps=();
+				
+		for my $RSIG (@aNewRowSigOrd){
+			my $cval=$hSgToVal->{$RSIG};
+			my $pcval=::roundXtoYdecimals( ( $cval/$dCstats{cmax} ) * 100, 2);
+			my $decile=1;
+			for my $dec (-9..1) { my $cmpv=-1*$dec*10; if( $pcval >= $cmpv ){ $decile= -1*$dec+1; $dDecGrps{$decile}++; last; } } 
+			say substr($RSIG,0,7) ."... (col=$ci : pc=$pcval dcl=$decile) ". $hSgToVal->{$RSIG} ." , ". join(" _ ", @{$hSgToRow->{$RSIG}});
+		}
+		say "\nDecile counts: ". join(" -- ", map { "D".$_ ."=". $dDecGrps{$_}  } sort {$a<=>$b} keys %dDecGrps );
+	}
+	sub _getMtxMapColi { 
+		my ($p,$colwant)=@_;
+		my $marf=$p->{amain};
+		my %dSigtoVal=();
+		my %dSigtoRow=();		
+		my $hMap=$p->getRowSigs();
+		#build and use cols from rows	
+		while ( my ($idxR,$arf)=each @$marf) {
+			while ( my ($idxC,$val)=each @$arf ) {
+				if($idxC!=$colwant-1){ next; } 
+				$dSigtoVal{$hMap->{$idxR}}=$val;
+				$dSigtoRow{$hMap->{$idxR}}=$arf;
+			}
+		}
+		return ( \%dSigtoVal , \%dSigtoRow );
+	}
+	sub srtMtxByCol { my $sdoc="sort matrix by column (int)";
 		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
 		my %dSigtoVal=();
 		my %dSigtoRow=();
@@ -529,6 +567,9 @@ package cMatrix { #matrix object
 	}
 	
 	sub mulxVuntilXYcond { my $p=shift; my $sdoc="ToDo: document"; $p->msgWIP(); }		
+	
+	sub delFrstRow { my $p=shift; my $marf=$p->{amain}; if( $p->bIsEmpty ) { return; } my $darf=shift @$marf; say "Deleted first row : ". join(" _ ", @$darf); }
+	sub delLastRow { my $p=shift; my $marf=$p->{amain}; if( $p->bIsEmpty ) { return; } my $darf=pop @$marf; say "Deleted last row : ". join(" _ ", @$darf); }		
 	sub delRow { my $sdoc="Delete row i";
 		my ($p,$idxD)=@_; my $marf=$p->{amain}; my @aRV=(); 
 		while ( my ($idx,$arf)=each @$marf ){ 
