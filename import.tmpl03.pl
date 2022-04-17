@@ -416,7 +416,7 @@ package cMatrix { #matrix object
 			}
 		}
 		$p->addCol(\@aTmp);
-		$p->show();
+		$p->show;
 	}	
 	sub mulrowxi { my $sdoc="multiply row by a scalar x, insert";
 		my ($p,$ridx, $mxv)=@_; 
@@ -430,8 +430,38 @@ package cMatrix { #matrix object
 				last;
 			}			 
 		}
-		$p->show();
-	}		
+		$p->show;
+	}
+	
+	sub calcStdvOfCol {  my $sdoc="insert STDV of column";
+		
+		my ($p,$cidx)=@_;
+		my $marf=$p->{amain}; my @aTmp=();
+		if( scalar(@$marf)==0){ say "Empty matrix"; return; }    
+		for my $rw (@$marf) { 
+			while ( my ($idxC,$vv)=each @$rw){ 
+				if( $idxC==$cidx-1 ) { push @aTmp, $vv; } 
+			}
+		}
+		my $stdv= ::roundXtoYdecimals( ::computeStnDev(\@aTmp) , 3) ;
+		my @aSTDVs=map { $_ <= $stdv ? "-".$stdv/$_ : $_/$stdv } @aTmp ;
+		my @aFinalMsgs=();
+		push @aFinalMsgs, "STDV=$stdv";
+		push @aFinalMsgs, "STDV values: ". join(" ;; ", @aSTDVs);
+		
+		for my $rw (@$marf) { 
+			#say __LINE__." ". join(" ;; ", @$rw);			
+			push @$rw, ::roundXtoYdecimals( shift @aSTDVs , 3 ); 
+			#say __LINE__." ". say join(" ;; ", @$rw);
+		}
+
+		
+		$p->show;
+		if( scalar(@aFinalMsgs)>0 ){ say join(" ;; ", @aFinalMsgs) ; }
+		
+	}
+	
+			
 	sub togStrict { my $p=shift; $p->{bStrict}==0 ? $p->{bStrict}=1 : $p->{bStrict}=0; say $p->{uic}." strict mode = ". $p->{bStrict}; }
 	sub isStrict { my $p=shift; return $p->{bStrict}==0 ? 0 : 1; }
 	sub setWidth { my ($p,$arf)=@_; if(! $p->{length} || $p->{length}<=0){ $p->{width}= scalar(@$arf); } }
@@ -520,7 +550,8 @@ package cMatrix { #matrix object
 			for my $dec (-9..1) { my $cmpv=-1*$dec*10; if( $pcval >= $cmpv ){ $decile= -1*$dec+1; $dDecGrps{$decile}++; last; } } 
 			say substr($RSIG,0,7) ."... (col=$ci : pc=$pcval dcl=$decile) ". $hSgToVal->{$RSIG} ." , ". join(" _ ", @{$hSgToRow->{$RSIG}});
 		}
-		say "\nDecile counts: ". join(" -- ", map { "D".$_ ."=". $dDecGrps{$_}  } sort {$a<=>$b} keys %dDecGrps );
+		my $iTotPartcips=0; map { $iTotPartcips += $dDecGrps{$_}  } keys %dDecGrps;
+		say "\nGroup size: $iTotPartcips // Decile counts: ". join(" -- ", map { "D".$_ ."=". $dDecGrps{$_}  } sort {$a<=>$b} keys %dDecGrps );
 	}
 	sub _getMtxMapColi { 
 		my ($p,$colwant)=@_;
@@ -538,8 +569,20 @@ package cMatrix { #matrix object
 		}
 		return ( \%dSigtoVal , \%dSigtoRow );
 	}
+	
+
+	
 	sub srtMtxByCol { my $sdoc="sort matrix by column (int)";
 		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
+		
+		my $carf=$p->getColsArf;
+		my %dCoLn=();
+		
+		while( my ($idxC,$arfC)=each @$carf) {
+			$dCoLn{$idxC}= ::max ( map { length($_) } @$arfC );			
+		}
+		
+		
 		my %dSigtoVal=();
 		my %dSigtoRow=();
 		my $hMap=$p->getRowSigs();
@@ -560,9 +603,13 @@ package cMatrix { #matrix object
 		
 		if($srtType==0) { @aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$a}<=>$dSigtoVal{$b} } keys %dSigtoVal; }
 		elsif($srtType==1) { @aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$b}<=>$dSigtoVal{$a} } keys %dSigtoVal; }
+				
 		
 		for my $RSIG (@aNewRowSigOrd){
-			say substr($RSIG,0,7) ."... ($colwant) ". $dSigtoVal{$RSIG} ." , ". join(" _ ", @{$dSigtoRow{$RSIG}});
+			my @aRw=@{$dSigtoRow{$RSIG}};
+			my @aJ= map { (length($aRw[$_]) < $dCoLn{$_} ) ? "*" x ( $dCoLn{$_} - length($aRw[$_]) ) . $aRw[$_] : $aRw[$_]  } 0..$#aRw ;
+			my $selVal=  ( length($dSigtoVal{$RSIG}) < $dCoLn{$colwant-1} ) ? "*" x ( $dCoLn{$colwant-1} - length($dSigtoVal{$RSIG}) ) . $dSigtoVal{$RSIG} : $dSigtoVal{$RSIG}; 			
+			say substr($RSIG,0,7) ."... ($colwant) $selVal , ". join(" _ ", @aJ);
 		}	
 	}
 	
