@@ -18,6 +18,9 @@ Import and use. Make your own!
 
 my $giENTRPY= 1 + int rand(time);
 
+my %gdKVp=(); #global arg dict
+
+$Data::Dumper::Sortkeys=1;
 
 # list args
 if (scalar(@ARGV)==0){ say "( ".__LINE__." No command-line args received. )"; }
@@ -54,9 +57,9 @@ else {
 		my $iToggle=0;
 		while ( my ($idx,$a)=each @aArgs) {
 			if($iToggle==0) {
-			 $dKVp{$a}=0; $iToggle=1;
-			}
-			else { $dKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
+			 $gdKVp{$a}=0; $iToggle=1;
+		}
+			else { $gdKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
 		}
 		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $dKVp{$_} } keys %dKVp);
 	}
