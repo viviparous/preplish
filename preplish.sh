@@ -39,6 +39,23 @@ aTmpFiles+=($scratchfile)
 declare -a aAppMsgs
 bPerltidy=0
 bPerldoc=0
+bCpanm=0
+bCpan=0
+if [ -x "$(command -v cpan)" ];
+then
+    aAppMsgs+=("cpan is installed")
+	bCpan=1
+else
+ aAppMsgs+=("no cpan found")
+fi
+if [ -x "$(command -v cpanm)" ];
+then
+    aAppMsgs+=("cpanm is installed")
+	bCpanm=1
+else
+ aAppMsgs+=("no cpanm found")
+fi
+
 if [ -x "$(command -v perldoc)" ];
 then
     aAppMsgs+=("perldoc is installed")
@@ -613,7 +630,7 @@ do
 		 srchstr=$(echo $codeline | awk '{print $2}')
    		 echo "received cmdhelpcmd $codeline"
 
-		 docu=$(head -n 100 $0 | grep "\[$srchstr\]" | awk -F'#' '{print $2}') 
+		 docu=$(head -n 130 $0 | grep "\[$srchstr\]" | awk -F'#' '{print $2}') 
 		 echo "$srchstr -- $docu"
 		else
 		 echo "error in $codeline"

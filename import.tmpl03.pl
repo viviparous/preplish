@@ -6,6 +6,7 @@ use Data::Dumper;
 use Digest::SHA qw(sha256_hex);
 use Scalar::Util qw(looks_like_number);
 use Time::Local qw( timelocal_posix );
+use ExtUtils::Installed;
 use List::Util qw( 
 head tail uniqstr uniqnum uniq pairs any all none notall first max maxstr min minstr product sum sum0 pairs pairkeys pairvalues shuffle 
 );
@@ -61,7 +62,7 @@ else {
 		}
 			else { $gdKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
 		}
-		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $dKVp{$_} } keys %dKVp);
+		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $gdKVp{$_} } keys %gdKVp);
 	}
 }
 
@@ -796,8 +797,15 @@ sub gettypeinfo {
 }	
 sub dec2hex { my $d=shift; return sprintf( "%x" , $d ); }
 sub padint { my $i=shift; if ($i<10){ return "  ".$i;} elsif ( $i < 100) { return " ".$i} else {return $i;} }
-
-
+sub listModulesCpanm {
+	my $oMD = ExtUtils::Installed->new();
+	my @aMD=();
+	for my $module (sort $oMD->modules()) {
+		push @aMD, $module;
+	}
+	say join("\n",@aMD);
+	say scalar(@aMD)." modules (cpanm).";
+}
 sub mulmxm { my $sDoc="multiply one matrix by another matrix, yield a matrix";
 	my $bDBG=0;
 	say mkstr([__LINE__,$sDoc]);
