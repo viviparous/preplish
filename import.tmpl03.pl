@@ -19,9 +19,6 @@ Import and use. Make your own!
 
 my $giENTRPY= 1 + int rand(time);
 
-my %gdKVp=(); #global arg dict
-
-$Data::Dumper::Sortkeys=1;
 
 # list args
 if (scalar(@ARGV)==0){ say "( ".__LINE__." No command-line args received. )"; }
@@ -58,11 +55,11 @@ else {
 		my $iToggle=0;
 		while ( my ($idx,$a)=each @aArgs) {
 			if($iToggle==0) {
-			 $gdKVp{$a}=0; $iToggle=1;
+			 $dKVp{$a}=0; $iToggle=1;
+			}
+			else { $dKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
 		}
-			else { $gdKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
-		}
-		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $gdKVp{$_} } keys %gdKVp);
+		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $dKVp{$_} } keys %dKVp);
 	}
 }
 
@@ -797,15 +794,128 @@ sub gettypeinfo {
 }	
 sub dec2hex { my $d=shift; return sprintf( "%x" , $d ); }
 sub padint { my $i=shift; if ($i<10){ return "  ".$i;} elsif ( $i < 100) { return " ".$i} else {return $i;} }
-sub listModulesCpanm {
-	my $oMD = ExtUtils::Installed->new();
-	my @aMD=();
-	for my $module (sort $oMD->modules()) {
-		push @aMD, $module;
+
+
+sub getHrfModsFromINC {	
+	my %dRV=();
+	my @aINCpaths=(); #push @aINCpaths, $_ foreach (@INC);
+	for my $incp (@INC){ 
+		push @aINCpaths, $incp;
+		my $stoutINC= qx/find $incp -type f -iname "*.pm"/ ;  	
+		my @aLines=split('\n',$stoutINC);
+		for my $L (@aLines){ 
+			my $fK=$L;
+			$dRV{$fK}=1;
+			$L=~s/$incp//i;
+			$L=~s/^\///;
+			$L=~s/\.pm$//i;
+			$L=~s/\//::/g;
+			$dRV{$fK}=$L;
+		}
 	}
-	say join("\n",@aMD);
-	say scalar(@aMD)." modules (cpanm).";
+	return \%dRV;
+	
 }
+
+sub getModsCpanHrf {
+	my %dRV=();
+	my $stoutCpan=qx/cpan -l/;
+	my @aLines=split('\n',$stoutCpan);
+	for my $L (@aLines) { my @aPcs=split(/\s+/,$L); my @aTmp=(); push @aTmp,$aPcs[1]; $dRV{$aPcs[0]}=\@aTmp; }
+	return \%dRV;
+}
+sub getCpanmModsHrf {
+	my %dRV=();
+	my $oMD = ExtUtils::Installed->new();
+
+	for my $module (sort $oMD->modules()) {
+		if(exists $dRV{$module}){  
+		 my $arf=$dRV{$module};
+		 push @$arf, $oMD->version($module);	
+		}
+		else {  
+			my @aVers=();
+			push @aVers, $oMD->version($module);
+			$dRV{$module}=\@aVers;
+		}
+	}
+	return \%dRV;
+}
+sub listModulesCpanm {
+	my $hrfRV=getCpanmModsArf();
+	for my $k (sort keys %$hrfRV){
+		my $arf=$hrfRV->{$k};
+		say $k ." versions: " . join (" ;; ", sort @$arf);
+	}
+	say "Done! ". scalar(keys %$hrfRV)." modules (cpanm).";
+}
+
+sub reportModules {
+	my $bDbg=0;
+	my %dCounts=();
+	my %dRV=();
+	my ($onever, $samever, $diffver)= ("_1ver", "_samever", "_diffver");
+	for my $key ( $onever, $samever, $diffver ) { my @aTmp=(); $dRV{$key}=\@aTmp; }
+	for my $key ( $onever, $samever, $diffver ) { $dCounts{$key}=0; }
+	
+	my $dhrfCPAN=getModsCpanHrf;
+	say join(" ;; ", sort keys %$dhrfCPAN)  if($bDbg==1);
+	my $dhrfCPANM=getCpanmModsHrf;
+	say join(" ;; ", sort keys %$dhrfCPANM)  if($bDbg==1);
+	my $dhrfCPANINC=getHrfModsFromINC;
+	say join(" ;; ", sort values %$dhrfCPANINC)  if($bDbg==1);
+
+	my %dAllKeys=();
+	for my $hrf ( $dhrfCPAN, $dhrfCPANM ) { map { $dAllKeys{$_}++ } keys %$hrf; } 
+
+	for my $k (sort keys %dAllKeys){
+		my $matchkeyUsed; #keep as undef;
+		my $phrase; #keep as undef
+		
+		if( $dAllKeys{$k} == 1) {  
+			if(exists $dhrfCPAN->{$k}) { 
+				$phrase= "=> $k in CPAN: ". join(" ;; ", @{$dhrfCPAN->{$k}} ) ;
+				say $phrase  if($bDbg==1);  $matchkeyUsed=$onever;
+			}
+			elsif( exists $dhrfCPANM->{$k}) { 
+				$phrase= "=> $k in CPANM: ". join(" ;; ", @{$dhrfCPANM->{$k}} ) ; }
+				say $phrase  if($bDbg==1);  $matchkeyUsed=$onever;
+		}
+		elsif( $dAllKeys{$k} > 1) {
+			if( join("",sort @{$dhrfCPAN->{$k}}) eq join("",sort @{$dhrfCPANM->{$k}}) ) {    
+			  $phrase= "=> $k (". __LINE__ .") the same in CPAN, CPANM: ". join(" ;; ", @{$dhrfCPAN->{$k}} ) ." /****/ => $k in CPANM: ". join(" ;; ", @{$dhrfCPANM->{$k}} );
+			  say $phrase if($bDbg==1);  $matchkeyUsed=$samever;
+			}
+
+			elsif( scalar ( keys %$dhrfCPAN ) == scalar( keys %$dhrfCPANM ) && join("",sort @{$dhrfCPAN->{$k}}) eq join("",sort @{$dhrfCPANM}->{$k}) ) {    
+			  $phrase= "=> $k (". __LINE__ .") the same in CPAN, CPANM: ". join(" ;; ", @{$dhrfCPAN->{$k}} ) ." /****/ => $k in CPANM: ". join(" ;; ", @{$dhrfCPANM->{$k}} );   
+			  say $phrase  if($bDbg==1);  $matchkeyUsed=$samever;
+			}
+			else {  
+			  $phrase= "=> $k (". __LINE__ .") DIFF in CPAN, CPANM: ". join(" ;; ", @{$dhrfCPAN->{$k}} ) ." /****/ => $k in CPANM: ". join(" ;; ", @{$dhrfCPANM->{$k}} );   
+			  say $phrase if($bDbg==1); $matchkeyUsed=$diffver;
+				 
+			}
+		}
+		$dCounts{$matchkeyUsed}++;
+		addDictKeyIfNot( \%dRV , $matchkeyUsed , $phrase );
+		
+		my @aINCsearch=grep { $_ =~ /^$k$/ } sort values %$dhrfCPANINC ;  
+		if (scalar(@aINCsearch)>0) {
+			my $indent="__**"; 
+			my @aReverseKeys = grep{ $dhrfCPANINC->{$_} eq $k } keys %$dhrfCPANINC;		 
+			$phrase= "$indent $k in \@INC:\n$indent ". join("\n$indent " , @aReverseKeys); 
+			say $phrase if($bDbg==1);
+			addDictKeyIfNot( \%dRV , $matchkeyUsed , $phrase );			
+			
+		} 
+	}
+	say "Field counts: ".join(" ;; ", map { "$_ => ". $dCounts{$_} } sort keys %dCounts);	
+	say "Dictionary keys are: ".join(" ;; ", sort keys %dRV);
+	return \%dRV;
+}
+
+
 sub mulmxm { my $sDoc="multiply one matrix by another matrix, yield a matrix";
 	my $bDBG=0;
 	say mkstr([__LINE__,$sDoc]);

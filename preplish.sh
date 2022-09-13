@@ -100,7 +100,9 @@ dcmdhelp[cmdlist]=cmdlist				#show input history
 dcmdhelp[cmdlsdir]=cmdlsdir				#ls dir
 dcmdhelp[cmdimport]="cmdimport "		#import a file
 dcmdhelp[cmdrunfwargs]="cmdrunfwargs "		#run a specific function with arguments
-dcmdhelp[cmdrwparms]="cmdrwparms "			#run existing code with @args 
+dcmdhelp[cmdrwparms]="cmdrwparms "			#run existing code with @args
+dcmdhelp[cmdshwinc]=cmdshwinc			#list all paths in @INC
+dcmdhelp[cmdgrpinc]=cmdgrpinc			#grep --colour $str in @INC
 dcmdhelp[cmdlsmods]=cmdlsmods			#cpan list installed
 dcmdhelp[cmdlsmodsgrep]=cmdlsmodsgrep	#cpan list | grep str
 dcmdhelp[cmdgrepf]="cmdgrepf "			#grep --colour -Hn param somefile
@@ -628,9 +630,10 @@ do
 		if [[ $cntParams -eq 2 ]]; 
 		then
 		 srchstr=$(echo $codeline | awk '{print $2}')
-   		 echo "received cmdhelpcmd $codeline"
+   		 echo "received cmdhelpcmd: $codeline"
 
-		 docu=$(head -n 130 $0 | grep "\[$srchstr\]" | awk -F'#' '{print $2}') 
+		 docu=$(grep "^dcmdhelp\[" $0 | grep "\[$srchstr\]" | awk -F'#' '{print $2}') 
+
 		 echo "$srchstr -- $docu"
 		else
 		 echo "error in $codeline"
@@ -667,7 +670,22 @@ do
 	 elif [[ ${dcmdhelp[cmdlsdir]} == $codeline ]];
 	 then
 		ls -l 
-		continue	
+		continue
+	 elif [[ ${dcmdhelp[cmdshwinc]} == $codeline ]];
+	 then
+		perl -e 'print "$_\n" foreach (sort @INC);'
+		continue
+	
+	elif [[ $codeline =~ ${dcmdhelp[cmdgrpinc]} ]];
+	 then
+		echo "received cmdgrpinc cmd $codeline"
+		cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $cntParams -eq 2 ]]; 
+		then
+			gstr=$(echo $codeline | awk '{print $2}')
+			perl -e 'print qx/find $_ -name "*.pm"/ foreach (@INC);' | grep --colour -i $gstr 
+		fi
+		continue
 	elif [[ ${dcmdhelp[cmdlsmods]} == $codeline ]];
 	 then
 		cpan -l
