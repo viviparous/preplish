@@ -399,6 +399,7 @@ do
 		
 		msgincolour "Received pod cmd. Add a new line with only =cut to complete"
 		dcntrlMode[cmPODmode]=1
+		unset aSubrForL
 		aSubrForL+=("$codeline")
 		listCurrSubrForL
 		continue
@@ -415,7 +416,9 @@ do
 
 		if [ "$frv" -eq 1 ]; then
 		 cp $scratchfile $tmpfile
-		 
+		 #fix bug, repeated entry on success
+		 #appendSubToSubrFile
+		 unset aSubrForL 
 		else
 		 msgincolour "Invalid code, discarding..."
 		 listCurrSubrForL
