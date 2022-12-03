@@ -99,8 +99,8 @@ dcmdhelp[cmdquit]=cmdquit				#exit,quit
 dcmdhelp[cmdlist]=cmdlist				#show input history
 dcmdhelp[cmdlsdir]=cmdlsdir				#ls dir
 dcmdhelp[cmdimport]="cmdimport "		#import a file
-dcmdhelp[cmdrunfwargs]="cmdrunfwargs "		#run a specific function with arguments
-dcmdhelp[cmdrwparms]="cmdrwparms "			#run existing code with @args
+dcmdhelp[cmdrunfwargs]="cmdrunfwargs "	#run a specific function with arguments
+dcmdhelp[cmdrwparms]="cmdrwparms "		#run existing code with @args
 dcmdhelp[cmdshwinc]=cmdshwinc			#list all paths in @INC
 dcmdhelp[cmdgrpinc]=cmdgrpinc			#grep --colour $str in @INC
 dcmdhelp[cmdlsmods]=cmdlsmods			#cpan list installed
@@ -113,14 +113,15 @@ dcmdhelp[cmdchkp]=cmdchkp				#save a copy of current code as a "checkpoint" file
 dcmdhelp[cmdcatf]="cmdcatf "			#cat named file
 dcmdhelp[cmdcatsub]="cmdcatsub "		#search subroutine names in a perl file
 dcmdhelp[cmdcatpkg]="cmdcatpkg "		#search package names in a perl file 
+dcmdhelp[cmdcatpws]="cmdcatpws "		#show package names and subs in a perl file 
 dcmdhelp[cmdclear]=cmdclear				#clear all code
-dcmdhelp[cmdclrlast]=cmdclrlast				#clear last line; code must be correct without the line
+dcmdhelp[cmdclrlast]=cmdclrlast			#clear last line; code must be correct without the line
 dcmdhelp[cmdpdocq]="cmdpdocq "			#perldoc query FAQs
 dcmdhelp[cmdpdocf]="cmdpdocf "			#perldoc query functions
 dcmdhelp[cmdtogrun]="cmdtogrun"			#toggle run code after each line is added; code check remains active
-dcmdhelp[cmddataimp]="cmddataimp"			#append data to data file; if cmddatatog is TRUE, file is appended as __DATA__ section
-dcmdhelp[cmddatatog]="cmddatatog"			#toggle inclusion of __DATA__ section
-dcmdhelp[cmddataclear]="cmddataclear"			#clear __DATA__ section , but leave toggle in current state
+dcmdhelp[cmddataimp]="cmddataimp"		#append data to data file; if cmddatatog is TRUE, file is appended as __DATA__ section
+dcmdhelp[cmddatatog]="cmddatatog"		#toggle inclusion of __DATA__ section
+dcmdhelp[cmddataclear]="cmddataclear"	#clear __DATA__ section , but leave toggle in current state
 
 
 #modes for input
@@ -255,7 +256,7 @@ function msgincolour {
 
 function msglinesyntax {
 
-echo $1 | sed -e 's/[\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\/\\{}#=]/\x1b[1;31;01m&\x1b[m/ig' | perl -pe  's/(while |use |sub |if |else )/\e[1;34m\1\033[0m/g'
+echo $1 | sed -e 's/[\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\/\\{}#=]/\x1b[1;31;01m&\x1b[m/ig' | perl -pe  's/(package |while |use |sub |if |else )/\e[1;34m\1\033[0m/g'
 
 }
 
@@ -572,6 +573,22 @@ do
 		
 		continue
 
+	elif [[ $codeline =~ ${dcmdhelp[cmdcatpws]} ]];
+	 then
+		echo "received catpws cmd $codeline"
+		
+		fname=$(echo $codeline | awk '{print $2}')
+		if [[ -e $fname ]]; 
+		then 
+		 echo "Found $fname"
+		 #grep --colour -HinP "^\s*package\s+\S+\s+{" $fname
+		 cat -n $fname | grep --colour -iP '^\s*\d+\spackage\s+|^\s*\d+\s\s+sub\s+' | while read LL; do msglinesyntax "$LL"; done
+		else
+		 echo "No file $fname"
+		fi
+		
+		continue
+
 	elif [[ $codeline =~ ${dcmdhelp[cmdrunfwargs]} ]];
 	 then
 		cntParams=$(echo $codeline | awk '{print NF}')
@@ -863,7 +880,7 @@ do
 			echo "_gettypeinfo($lside);" >> $scratchfile 
 		  fi
 		  perl -I . $scratchfile
-		  if [[ $bEvalLast -eq 1 ]]; then echo "assigned lvalue: $lside , length $varlen" ; fi		  
+		  if [[ $bEvalLast -eq 1 ]]; then echo "assigned lvalue: $lside , name length $varlen" ; fi		  
 		 
 		 elif [[ $bEvalLast -eq 1 ]]; then 
 		  #copy main file to tmp, append perl evaluation statement; tail -n 1 the output		 

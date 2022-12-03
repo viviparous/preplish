@@ -19,6 +19,12 @@ Import and use. Make your own!
 
 my $giENTRPY= 1 + int rand(time);
 
+my %gdKVp=(); #global arg dict
+
+my %gdAppParms=( appVerbose=>1 );
+
+
+$Data::Dumper::Sortkeys=1;
 
 # list args
 if (scalar(@ARGV)==0){ say "( ".__LINE__." No command-line args received. )"; }
@@ -55,11 +61,11 @@ else {
 		my $iToggle=0;
 		while ( my ($idx,$a)=each @aArgs) {
 			if($iToggle==0) {
-			 $dKVp{$a}=0; $iToggle=1;
-			}
-			else { $dKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
+			 $gdKVp{$a}=0; $iToggle=1;
 		}
-		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $dKVp{$_} } keys %dKVp);
+			else { $gdKVp{$aArgs[$idx-1]}=$a; $iToggle=0; }
+		}
+		say mksqbracks(__LINE__). "KVP args: ". join(" ;; ", map { $_ ." = ". $gdKVp{$_} } keys %gdKVp);
 	}
 }
 
@@ -310,12 +316,19 @@ package cMatrix { #matrix object
 		width=>-1,
 		bStrict=>0,
 		bIsValidState=>1,
+		datasrcref=>"",
 		};
 	my $obj=bless $self,$class;
+	$obj->showDocu; 
 	return $obj;
 	}
+	sub	showDocu { my $p=shift; if( $gdAppParms{appVerbose} > 0 ){ say "This is a " . $p->{type} . "object. Use method importFileData to add data."; } }
 	sub getType { my $p=shift; return $p->{type}; }
 	sub setHdrs {my ($p,$rarf)=@_; my $marf=$p->{ahdrs}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } for my $val (@$rarf) { push @aTmp, $val; } push @$marf, \@aTmp; $p->shape(); }
+	sub setDataSrc { 
+		my ($p,$srcref)=@_; my $prev=$p->{datasrcref}; $p->{datasrcref}=$srcref; 
+		say "Set data source ref.\nprev: \"$prev\"\ncurr: ".$p->{datasrcref}; }
+	sub getDataSrc { my $p=shift; return $p->{datasrcref}; }
 	sub bIsEmpty {my $p=shift; my $marf=$p->{amain}; my $rv=0; if( scalar(@$marf)==0){ $rv=1; } return $rv; }
 	sub addRow {
 		my ($p,$rarf)=@_;  my $marf=$p->{amain}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } 
@@ -479,15 +492,19 @@ package cMatrix { #matrix object
 		my $fnout=$fn.$iC.$ext;
 		while ( -e $fnout ) { $iC++; $fnout=$fn.$iC.$ext ; }
 		
-		open(my $fh, '>', $fnout);
 		my $marf=$p->{amain};
 		
 		if(scalar(@$marf)>0) {
-			for my $arfR (@$marf){ say $fh join(" ",@$arfR); }
+			open(my $fh, '>', $fnout);
+			if(length($p->{datasrcref}) > 0 ) { say $fh "#datasrcref _ " . $p->{datasrcref}; }
+			#for my $arfR (@$marf){ say $fh join(",", @$arfR); }
+			for my $arfR (@$marf){ say $fh join(",", map{ if(::numtest($_)){ $_ } else { $_=~s/\s+/_/gr } } @$arfR); }			
+			for my $arfR (@$marf){ say "Export: ". join(" , ", map{ if(::numtest($_)){ "(n) ". $_ } else { "(s) " . $_=~s/\s+/_/gr } } @$arfR); }
+
 			close($fh);
-			say "Data exported to file $fnout .";
+			say "Data exported to file $fnout as csv.";
 		}
-		else { say __LINE__. "$fn is empty."; }
+		else { say __LINE__. " Nothing exported, ". $p->{type} . " is empty."; }
 	}
 	sub mvColtoPos { my $p=shift; $p->msgWIP(); }
 	sub mvRowtoPos { my $sdoc="Move row to new position"; 
@@ -504,6 +521,12 @@ package cMatrix { #matrix object
 		$dRows{$Rn}=$arfTmp;
 		my @aTmp= map { $dRows{$_} } sort {$a<=>$b} keys %dRows ;
 		$p->{amain}=\@aTmp;  
+	}
+	sub	shwRow { my $sdoc="show row n";
+	 my ($p,$rowwant)=@_; #n is the human non-zero index 
+	 my $marf=$p->{amain}; 
+	 if(! ::numtest($rowwant) || $rowwant <= 0 || $rowwant > scalar(@$marf) ) { say $p->{uic}." \"$rowwant\" not found"; }
+	 else { my $rarf= $marf->[$rowwant-1] ; say $p->{uic}." \"$rowwant\"\n" . join(" ;; ", @$rarf); }
 	}
 	sub shwCol { my $sdoc="shows column n";
 		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
@@ -696,7 +719,7 @@ package cMatrix { #matrix object
 		$p->shape(); say '='x13; 
 	}
 
-	sub importFileData { my $sdoc="data = rows of space-separated values";
+	sub importFileData { my $sdoc="data = rows of comma-separated values";
 		say $sdoc;  
 		my ($p,$fname)=@_; 
 		if ( ! -e $fname ) { say "$fname not found."; return; }
@@ -707,7 +730,7 @@ package cMatrix { #matrix object
 		my %dStats=(); 
 		while ( my ($idx,$L)=each @aFL) {
 			if(length($L)==0 || $L=~/^\s+$/){ say "empty line in data ($idx) ."; next; } 
-			my @aPcs=split(/ +/,$L); $dStats{$idx}=\@aPcs; 
+			my @aPcs=split(/\s*,\s*/,$L); $dStats{$idx}=\@aPcs; 
 			if( $p->{width} <1 ){ $p->setWidth(\@aPcs);   } 
 			elsif( $p->{width}!= scalar(@aPcs) ){ say "import warning, row $idx"; }		
 			push @$marf,\@aPcs; 
