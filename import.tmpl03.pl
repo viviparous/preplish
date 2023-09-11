@@ -23,11 +23,12 @@ my %gdKVp=(); #global arg dict
 
 my %gdAppParms=( appVerbose=>1 );
 
+my $gbDbg=0;
 
 $Data::Dumper::Sortkeys=1;
 
 # list args
-if (scalar(@ARGV)==0){ say "( ".__LINE__." No command-line args received. )"; }
+if (scalar(@ARGV)==0){ if($gbDbg==1){ say "( ".__LINE__." No command-line args received. )"; } }
 #handle args that may be quoted
 else {
 	my $bMkStr=0;
@@ -323,6 +324,18 @@ package cMatrix { #matrix object
 	return $obj;
 	}
 	sub	showDocu { my $p=shift; if( $gdAppParms{appVerbose} > 0 ){ say "This is a " . $p->{type} . "object. Use method importFileData to add data."; } }
+	sub head { my $sdoc="Show first n rows";
+		my ($p, $n)=@_;
+		if(! defined($n)){ $n=5; } 
+		my $marf=$p->{amain};
+		say $p->{uic} ." $sdoc"; 
+		while (my ($idx,$val)=each @$marf) { 
+			my $arf =$marf->[$idx]; 
+			#say __LINE__ x 60 ." ".__LINE__."\ndbg\n". join(" ;; ", @$arf); 
+			say join(" ;; ", @$arf);
+			if($idx>$n){ last; } 
+		}		 
+	}
 	sub getType { my $p=shift; return $p->{type}; }
 	sub setHdrs {my ($p,$rarf)=@_; my $marf=$p->{ahdrs}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } for my $val (@$rarf) { push @aTmp, $val; } push @$marf, \@aTmp; $p->shape(); }
 	sub setDataSrc { 
@@ -334,7 +347,7 @@ package cMatrix { #matrix object
 		my ($p,$rarf)=@_;  my $marf=$p->{amain}; my @aTmp=(); if(scalar(@$rarf)==0){ return; } 
 		$p->setWidth($rarf); 
 		for my $val (@$rarf) { push @aTmp, $val; } 
-		push @$marf, \@aTmp; $p->shape(); 
+		push @$marf, \@aTmp; #$p->shape(); 
 	}
 	sub addCol { 
 		my ($p,$carf)=@_; my $marf=$p->{amain}; 
@@ -353,6 +366,13 @@ package cMatrix { #matrix object
 		} 
 		else { say "Error: input size, col=".scalar(@$carf)." rows=".scalar(@$marf); $p->shape(); } 
 	}
+	sub addIndex { my $sdoc="add index column";
+	 my ($p,$n)=@_; 
+	 if(! defined($n)){ $n=0; }
+	 my $c=$p->getRowCount;if($n==0){$c--;}elsif($n>1){$c=$n+$c;} 
+	 my @aC=map { $_ } $n .. $c; $p->addCol(\@aC); 
+	}
+	
 	sub getRowsArf { my $p=shift; return $p->{amain}; }
 	sub setRowsArf { my ($p,$arfM)=@_; # check shape, set valid
 		my %dChk=();
@@ -400,7 +420,7 @@ package cMatrix { #matrix object
 	sub getRowCount { my $sdoc="yield row count";
 	 my $p=shift; my $marf=$p->{amain}; return scalar(@$marf); 
 	}
-	sub getWidth { my $p=shift; return $p->{width} ; }
+	sub getWidth { my $p=shift; my $rv=$p->{width}; my $marf=$p->{amain}; if(scalar(@$marf)>0){ my $arfw=$marf->[0] ; $rv=scalar(@$arfw); $p->setWidth($arfw); } return $rv; }
 	sub _getRowNarf { my $sdoc="return arf at row number";
 	 my ($p,$rn)=@_; my $marf=$p->{amain}; my $rvArf=$marf->[$rn];  return $rvArf; 
 	}
@@ -412,7 +432,7 @@ package cMatrix { #matrix object
 	 return \@aRV; 
 	}
 	
-	sub shape { my $p=shift; my $marf=$p->{amain}; say "Shape ".substr($p->{uic},0,14)."... "; $p->prHdrs(); say "Rows: ".scalar(@$marf); say "Width: ".$p->{width}; }	
+	sub shape { my $p=shift; my $marf=$p->{amain}; say "Shape ".substr($p->{uic},0,14)."... "; $p->prHdrs(); say "Rows: ".scalar(@$marf); say "Width: ".$p->getWidth; }	
 	sub mulx { my $sdoc="multiply by a scalar x";
 		my ($p,$mxv)=@_; if( ! ::numtest($mxv)){ say "NAN $mxv"; return; }  
 		my $marf=$p->{amain}; my @aTmp=();
@@ -478,17 +498,28 @@ package cMatrix { #matrix object
 			
 	sub togStrict { my $p=shift; $p->{bStrict}==0 ? $p->{bStrict}=1 : $p->{bStrict}=0; say $p->{uic}." strict mode = ". $p->{bStrict}; }
 	sub isStrict { my $p=shift; return $p->{bStrict}==0 ? 0 : 1; }
-	sub setWidth { my ($p,$arf)=@_; if(! $p->{length} || $p->{length}<=0){ $p->{width}= scalar(@$arf); } }
+	sub setWidth { #take an arf, set width; no change if value invalid
+		my ($p,$arf)=@_; $p->{width}= scalar(@$arf); 
+	}
 	sub setIsValid { my ($p,$val)=@_; $p->{bIsValidState}= $val; } 
 	sub chkTypes { my ($p,$charf)=@_; my %dTypes=(i=>0,s=>0,o=>0); $p->msgWIP();  }	
-	sub exportToFile { my $sdoc="Save matrix data to a file";
-		my ($p,$fn)=@_;
+	sub exportToFile { my $sdoc="Save matrix data to a file. Arg1=str|empty|_ , Arg1=_ Arg2=sepchar";
+		my ($p,$fn,$fsep)=@_;
+		
 		my $fnshort=substr($p->{uic},0,14)."-";
 		
-		if(! defined($fn)){ $fn=$fnshort.::getDTPrefix(); }  
+		if(! defined($fn) || $fn eq "_") { $fn=$fnshort.::getDTPrefix();  }
 		else { $fn=~s/ +/-/g ; $fn=$fnshort.::getDTPrefix().$fn."_"; }
-		my $iC=0;
-		my $ext="_export.txt";
+				
+		if($fn eq "_" && ! defined($fsep)){ $fsep=','; }
+		elsif($fn eq "_" && defined($fsep)){ say "Export using fsep $fsep"; }		
+
+		my %dExts=( txt=>"_export.txt", csv=>"_export.csv.txt", scsv=>"_export.scsv.txt" );
+		my $ext=$dExts{txt};
+		if($fsep eq ','){  $ext=$dExts{csv}; }
+		elsif($fsep eq ';'){  $ext=$dExts{scsv}; }
+
+		my $iC=0;			
 		my $fnout=$fn.$iC.$ext;
 		while ( -e $fnout ) { $iC++; $fnout=$fn.$iC.$ext ; }
 		
@@ -498,16 +529,73 @@ package cMatrix { #matrix object
 			open(my $fh, '>', $fnout);
 			if(length($p->{datasrcref}) > 0 ) { say $fh "#datasrcref _ " . $p->{datasrcref}; }
 			#for my $arfR (@$marf){ say $fh join(",", @$arfR); }
-			for my $arfR (@$marf){ say $fh join(",", map{ if(::numtest($_)){ $_ } else { $_=~s/\s+/_/gr } } @$arfR); }			
-			for my $arfR (@$marf){ say "Export: ". join(" , ", map{ if(::numtest($_)){ "(n) ". $_ } else { "(s) " . $_=~s/\s+/_/gr } } @$arfR); }
+			for my $arfR (@$marf){ say $fh join("$fsep", map{ if(::numtest($_)){ $_ } else { $_=~s/\s+/_/gr } } @$arfR); }			
+			for my $arfR (@$marf){ say "Export: ". join("$fsep", map{ if(::numtest($_)){ "(n) ". $_ } else { "(s) " . $_=~s/\s+/_/gr } } @$arfR); }
 
 			close($fh);
 			say "Data exported to file $fnout as csv.";
 		}
 		else { say __LINE__. " Nothing exported, ". $p->{type} . " is empty."; }
 	}
-	sub mvColtoPos { my $p=shift; $p->msgWIP(); }
-	sub mvRowtoPos { my $sdoc="Move row to new position"; 
+	
+	sub _mvOrswap {
+		my ($p,$movorswp,$Cn,$Pn)=@_; #mov 1 swp 2 col pos
+
+		my $rarf=$p->{amain};
+		my $carf=$p->getColsArf;
+		if($Pn > scalar(@$carf)) { $Pn =scalar(@$carf); }
+				
+		$Cn--; $Pn--; #ab USERPOV
+
+		if(scalar(@$rarf)==0 || scalar(@$carf)==0){ $p->msgStatusEmpty; return; }
+		elsif($Cn==$Pn || $Cn<0 || $Pn<0 ){ return; }
+		
+		my %dRefs=();
+
+		while ( my ($idx,$arf)=each @$carf) {
+			
+			if($idx==$Cn){ $dRefs{$Pn}=$arf; } #in either case,$Cn moves to $Pn
+			elsif($movorswp==2){ #swap
+				if($idx==$Pn){ $dRefs{$Cn}=$arf; } 			
+				else{ $dRefs{$idx}=$arf; } 							
+			}
+			elsif($movorswp==1){
+				if($idx==$Pn){ $dRefs{$Pn+1}=$arf; }#insert
+				elsif($idx>$Pn){ $dRefs{$idx+1}=$arf; }#swap
+				else{ $dRefs{$idx}=$arf; } 							
+			}
+		}
+		
+		for my $arfkey (sort {$a<=>$b} keys %dRefs){ my $arf=$dRefs{$arfkey}; say 'X' x 60 . " ". __LINE__. "\ndbgDump\n". join(" ;; ", @$arf); }
+				
+		my %dNewRows=();
+		for my $colkey (sort {$a<=>$b} keys %dRefs) {
+		 my $colref = $dRefs{$colkey};	
+		 while (my ($idx, $fieldval)=each @$colref){ 
+			 
+			 if(! exists $dNewRows{$idx}){my @aTmp=(); push @aTmp, $fieldval; $dNewRows{$idx}=\@aTmp;}
+			 else { my $arf=$dNewRows{$idx}; push @$arf, $fieldval;  } 
+		 } 			
+		}
+		my @aNewData= map { $dNewRows{$_} } sort {$a<=>$b} keys %dNewRows;
+		for my $arf (@aNewData){ say '=' x 60 . " ". __LINE__. "\ndbgDump\n". join(" ;; ", @$arf); }
+		$p->{amain}=\@aNewData;
+		$p->show();
+				
+	}
+	
+	sub mvColToPos { my $sdoc="move col to pos";
+		my ($p,$Cn,$Pn)=@_; 
+		$p->_mvOrswap(1,$Cn,$Pn);
+		
+	}
+
+	sub swapColToPos { my $sdoc="swap columns"; 
+		my ($p,$Cn,$Pn)=@_; 
+		$p->_mvOrswap(2,$Cn,$Pn);
+				
+	}
+	sub mvRowToPos { my $sdoc="Move row to new position"; 
 		my ($p,$Rn,$Pn)=@_; my $marf=$p->{amain}; 
 		if($Rn==$Pn){ return; }
 		elsif($Rn>scalar(@$marf) || $Pn>scalar(@$marf)){ return; }
@@ -546,7 +634,11 @@ package cMatrix { #matrix object
 			say join("\n", map {$_."=".$dCols{$_} } sort { $dCols{$a}<=>$dCols{$b} } keys %dCols);
 		} else { say join("\n", map {$_."=".$dCols{$_} } sort { $a<=>$b } keys %dCols); }
 	}
-	sub getRowSigs { my $sdoc="ToDo: document";
+	sub shwSpcfCols { my $sdoc="Show specific columns"; #take int arf
+		my $p=shift; $p->msgWIP; }
+	sub shwSpcfRows { my $sdoc="Show specific rows"; #take int arf 
+		my $p=shift; $p->msgWIP; }
+	sub getRowSigs { my $sdoc="Return a UID for each row";
 		my $p=shift; my $marf=$p->{amain};
 		my %hRV=();  
 		while ( my ($idxR,$arf)=each @$marf) {
@@ -697,7 +789,7 @@ package cMatrix { #matrix object
 	 $p->show;	
 	}
 	
-			
+	sub msgStatusEmpty { my $p=shift; say $p->{uic}." Structure has no data."; }				
 	sub msgWIP { my $p=shift; say $p->{uic}." not yet implemented."; }	
 	sub prHdrs { my $p=shift; if($p->{width}<=0){ return; } my @ah=(); my $hdarf=$p->{ahdrs}; if(scalar(@$hdarf)==0){ @ah=@$hdarf;  } else { @ah=map{ $_ } 1..($p->{width}); say join( " _ ", @ah);}  }	
 	sub show { my $p=shift; my $bDbg=0; my $marf=$p->{amain}; 
@@ -873,7 +965,13 @@ sub listModulesCpanm {
 	say "Done! ". scalar(keys %$hrfRV)." modules (cpanm).";
 }
 
-sub reportModules {
+sub listAllModules { my $sdoc="List all modules, compare versions";
+ my $p=shift;
+ my $hrf=_reportModulesRetRef();
+ for my $k ( sort keys %$hrf) { say '*' x 60 . "\n$k=\n". join("\n", @{$hrf->{$k}}); }
+}
+
+sub _reportModulesRetRef {
 	my $bDbg=0;
 	my %dCounts=();
 	my %dRV=();
@@ -1197,7 +1295,7 @@ sub openFileRetArf { my $f=shift; my @ary=();
 	else { open( my $SF, "<", $f ); @ary=<$SF>; close($SF); 
 	 chomp(@ary);
 	 say "Read \"$f\" , line count ". scalar(@ary); 
-	 say "Tip: next you might: for my \$L (\@\$arf) { say \$L; }";
+	 say "Tip: next you might try\nfor my \$L (\@\$arf) { say \$L; }\nor\nsay join(\"\\n\",map{ \$fdata->[\$_] } 0..5);";
 	 return \@ary; 
 	}
 }
@@ -1259,6 +1357,130 @@ sub readDATA { #read data appended as DATA , return HRF; param01: split on space
 	return \%dRVSet;
 }
 
+sub checkIPtype {
+	my $Linf = shift;
+	my @aMsgs=();
+	
+	my %dRV=( bSuccess=>0 , bRV=>0 , arfMsgs=> \@aMsgs , inVal=>$Linf ); 
+	
+	say __LINE__. " Checking $Linf";
+		
+	my $ipaddrtype=0; #1 = ipv4 , 2 = ipv6 , 3 = local/private
+
+	my @arrIP=split /\./,$Linf;
+	
+	if ( scalar(@arrIP) == 4 && defined $Linf) { 
+		push @aMsgs,  __LINE__ . " $Linf type $ipaddrtype scalar=".scalar(@arrIP);
+		$ipaddrtype=1;
+		$dRV{bSuccess}=1; 
+		$dRV{bRV}=$ipaddrtype;		
+	}
+	elsif ( $Linf =~ /:/ ) { 
+		$ipaddrtype=2;	
+		push @aMsgs,  __LINE__ . " TODO: improve IPV6 check. $Linf type $ipaddrtype scalar=".scalar(@arrIP);			
+	}
+	
+
+	#if private or localhost
+	
+	#10.0.0.0 - 10.255.255.255
+	#172.16.0.0 - 172.31.255.255
+	#192.168.0.0 - 192.168.255.255
+	#169.254.0.1 through 169.254.255.254 APIPA M-Windows
+
+	
+	if($dRV{bSuccess}==1 && $ipaddrtype==1){
+	  if( $arrIP[0]==10 || ( $arrIP[0]==172 && $arrIP[1]>=16 && $arrIP[1]<=31 ) || (  $arrIP[0]==192 && $arrIP[1]==168 ) || ( $arrIP[0]==169 && $arrIP[1]==254  )  ) {  
+		push @aMsgs,  __LINE__ . " $Linf type $ipaddrtype is non-routable"; 
+		$dRV{bSuccess}=0 ; $ipaddrtype=3 ;	$dRV{bRV}=$ipaddrtype;
+	  }
+	}
+
+	if($dRV{bSuccess}!=1){ 
+		say join(" ;; ", map { $_ ." => ". $dRV{$_} } sort keys %dRV  ) ;
+		say join(" ;; " , @aMsgs); 
+	}
+
+
+	return \%dRV;
+}
+
+sub getCIDRrange {
+
+	my $cidrStr=shift;
+	my ($ipaddr,$sz)=split("/", $cidrStr);
+	my %dRVcidr=( bSuccess=>1 , invalue=>$cidrStr, intIPV4stt=>0, intIPV4end=>0 , froctIPV4stt=>0, froctIPV4end=>0 );	
+	
+	my $hrfRV=checkIPtype( $ipaddr );
+	if( $hrfRV->{bSuccess} != 1 ) { 
+		say "Error: ". join(" ;; ", map { $_ ." => ". $hrfRV->{$_} } keys %$hrfRV );
+		$dRVcidr{bSuccess}=0;
+	} 
+	elsif( $sz > 32  ) { 
+		say "Error: check value $cidrStr";
+		$dRVcidr{bSuccess}=0;
+	} 
+	
+	if(	$dRVcidr{bSuccess}==1 ) {
+
+		my @bytes = split /\./, $ipaddr;
+		my $start_decimal = $bytes[0] * 2**24 + $bytes[1] * 2**16 + $bytes[2] * 2**8 + $bytes[3];
+		my $bits_remaining = 32 - $sz;
+		my $end_decimal = $start_decimal + 2 ** $bits_remaining - 1;
+		@bytes = unpack 'CCCC', pack 'N', $end_decimal;
+		my $end_ipv4 = join '.', @bytes; 
+		$dRVcidr{intIPV4stt}= $start_decimal ;
+		$dRVcidr{intIPV4end}= $end_decimal ;
+		$dRVcidr{froctIPV4stt}= cnvIntToIPV4($start_decimal) ;
+		$dRVcidr{froctIPV4end}= cnvIntToIPV4($end_decimal) ;
+		say "RV keys: ". join(" ;; ", sort keys %dRVcidr ) ; 
+
+	}
+	return \%dRVcidr;
+	
+}
+
+sub cnvIPV4toInt {
+	my $ipaddr=shift;
+	my $hrfRV=checkIPtype( $ipaddr );
+	my $iRV=-1; #type Long
+	
+	if( $hrfRV->{bSuccess} != 1 ) { 
+		say "Error: ". join(" ;; ", map { $_ ." => ". $hrfRV->{$_} } keys %$hrfRV );
+	} 
+	else {
+		my @arrIP=split /\./,$ipaddr;		
+		my $iLong= $arrIP[0]*256**3 + $arrIP[1]*256**2 + $arrIP[2]*256 + $arrIP[3];
+		$iRV=$iLong; 
+
+	# 	(first octet * 256³) + (second octet * 256²) + (third octet * 256) + (fourth octet)
+	#= 	(first octet * 16777216) + (second octet * 65536) + (third octet * 256) + (fourth octet)
+	#= 	(142 * 16777216) + (127 * 65536) + (180 * 256) + (149)
+	#= 	2390733973
+	
+	}	
+
+	return $iRV;
+
+}
+
+sub cnvIntToIPV4 {
+	my $iLong=shift;
+	my $int=$iLong;
+
+	if( ! looks_like_number($iLong) ) { #must be a decimal number
+		say "Error: Not a number? $iLong";
+		exit(0);
+	} 
+
+	my $quad4       = $int % 256; $int      = int($int/256);
+	my $quad3       = $int % 256; $int      = int($int/256);
+	my $quad2       = $int % 256; $int      = int($int/256);
+	my $quad1       = $int % 256;
+
+	return "$quad1.$quad2.$quad3.$quad4";
+
+}
 
 sub sortAsVersInt { #versint is 2020.01.30 or 2020.2021.2022 &c
  my $bDbg=1;
