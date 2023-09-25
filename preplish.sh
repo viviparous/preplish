@@ -17,6 +17,10 @@ tmpfile=$dts$fstem
 touch $tmpfile
 scratchfile=_tmp001.txt
 touch $scratchfile
+tmpprevcmpl=_tmp002.txt
+touch $tmpprevcmpl
+tmpcurrcmpl=_tmp003.txt
+touch $tmpcurrcmpl
 #logfile=_tmplog.txt
 #touch $logfile
 datasetsffx=_data.txt
@@ -34,7 +38,8 @@ userLoops=0
 
 declare -a aTmpFiles	#add files to remove
 aTmpFiles+=($scratchfile)
-
+aTmpFiles+=($tmpprevcmpl)
+aTmpFiles+=($tmpcurrcmpl)
  
 declare -a aAppMsgs
 bPerltidy=0
@@ -103,6 +108,7 @@ dcmdhelp[cmdrunfwargs]="cmdrunfwargs "	#run a specific function with arguments
 dcmdhelp[cmdrwparms]="cmdrwparms "		#run existing code with @args
 dcmdhelp[cmdshwinc]=cmdshwinc			#list all paths in @INC
 dcmdhelp[cmdgrpinc]=cmdgrpinc			#grep --colour $str in @INC
+dcmdhelp[cmdgrtodo]=cmdgrtodo			#grep -Hinr "todo" fname
 dcmdhelp[cmdlsmods]=cmdlsmods			#cpan list installed
 dcmdhelp[cmdlsmodsgrep]=cmdlsmodsgrep	#cpan list | grep str
 dcmdhelp[cmdgrepf]="cmdgrepf "			#grep --colour -Hn param somefile
@@ -695,7 +701,24 @@ do
 	 then
 		perl -e 'print "$_\n" foreach (sort @INC);'
 		continue
-	
+
+	 elif [[ $codeline =~ ${dcmdhelp[cmdgrtodo]} ]];
+	 then
+	 	cntParams=$(echo $codeline | awk '{print NF}')
+		if [[ $cntParams -eq 2 ]]; 
+		then
+		 echo "received cmdgrtodo cmd $codeline"
+		 fname=$(echo $codeline | awk '{print $2}')
+		 if [[ -e $fname ]]; 
+		 then 
+		  echo "Found $fname"
+		  grep --colour -Hin "todo" $fname
+		 else
+		 echo "No file $fname"
+		 fi	 
+		 continue
+		fi
+
 	elif [[ $codeline =~ ${dcmdhelp[cmdgrpinc]} ]];
 	 then
 		echo "received cmdgrpinc cmd $codeline"
@@ -845,11 +868,19 @@ do
 	 echo "$codeline" >> $tmpfile
 	 
 
-	 
-	 rv=$(perl -I . -c $tmpfile)
+	 rv=$(perl -I . -c $tmpfile )
 
 	 if [ $? -eq 0 ] #compile worked
 	 then
+		
+		if [[ -e $tmpprevcmpl ]]; then
+		 diff $tmpprevcmpl $tmpcurrcmpl | grep -P "^> " 
+		else
+		 cat $tmpcurrcmpl
+		fi
+		
+		cp $tmpcurrcmpl $tmpprevcmpl
+
 		
 		 #if last line contains a LH assignment, test the value
 		 #capture the variable, insert "showtype($varname)" and run
@@ -857,7 +888,8 @@ do
 		lside=-1
 		lastline=$(tail -n 1 $tmpfile)
 		if ! echo "$lastline" | grep -q "==" && ! echo "$lastline" |  grep -q "!=" && ! echo "$lastline" | grep -q ">=" && ! echo "$lastline" | grep -q "<=" && echo "$lastline" | grep -q "=" ; then
-		 lside=$(echo $lastline | perl -lne 'my $v=$_; my $rv=0; my $xEQ=index($v, "="); my $s1=substr($v,0,$xEQ-1); if(  $s1 !~ /[{}()]/  && ! m/==/ && m/[^!><+-]=/ ){ m/(\S+)=/; $rv=$1; } print $rv; ' )
+		 #lside=$(echo $lastline | perl -lne 'my $v=$_; my $rv=0; my $xEQ=index($v, "="); my $s1=substr($v,0,$xEQ-1); if(  $s1 !~ /[{}()]/  && ! m/==/ && m/[^!><+-]=/ ){ m/(\S+)=/; $rv=$1; } print $rv; ' )
+		 lside=$(echo $lastline | awk -F'=' '{print $1}' | awk '{print $NF}')		 
 		 #echo "$LINENO dbg: $lside"
 		 varlen=${#lside} 
 		 if [[ $lside != "0" && $varlen -gt 1 ]]; then bEvalLast=1 ; fi
@@ -873,11 +905,21 @@ do
 		 elif [[ ${dcntrlMode[cmTOGrun]} -eq 1 ]]; then 
 		  cat $tmpfile > $scratchfile
 		  if [[ $bEvalLast -eq 1 ]]; then 
-		  
-			echo "sub _gettypeinfo { my \$var=shift; if(ref(\$var)) { say \"ref \$var of type \". ref(\$var);  }" >> $scratchfile  
-			echo "	elsif(looks_like_number(\$var)) { say \"\$var of type number\";  }" >> $scratchfile 
-			echo "		else { say Dumper (\$var); } }" >> $scratchfile 
-			echo "_gettypeinfo($lside);" >> $scratchfile 
+			dctregex="^[[:space:]]*\%"
+			aryregex="^[[:space:]]*\@"
+			scrfregex="^[[:space:]]*\$"			
+			echo "use JSON;" >> $scratchfile
+			if [[ $lside =~ $dctregex ||  $lside =~ $aryregex ]];
+			then
+				echo "my \$jsonval=encode_json \\$lside;" >> $scratchfile
+				echo "say \$jsonval;" >> $scratchfile				 
+				echo "say decode_json \$jsonval;" >> $scratchfile
+			else
+				echo "my \$jsonval=encode_json $lside; " >> $scratchfile
+				echo "if(ref($lside)){ say \$jsonval; say decode_json \$jsonval; }" >> $scratchfile 
+				echo "else{ say \$jsonval; }" >> $scratchfile 
+			fi
+				
 		  fi
 		  perl -I . $scratchfile
 		  if [[ $bEvalLast -eq 1 ]]; then echo "assigned lvalue: $lside , name length $varlen" ; fi		  
