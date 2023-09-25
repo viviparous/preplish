@@ -1,5 +1,7 @@
 # preplish
 
+### Project Status: Active
+
 Perl REPL in Shell: a simple REPL for Perl 5 written in Bash with grep, sed, awk, and Perl.
 
 ![usage01](https://github.com/viviparous/preplish/blob/main/step001-preplish-opt.gif)
@@ -11,7 +13,6 @@ This project aims to be a good|fun|easy REPL that has value for general programm
 
 ![usage03](https://github.com/viviparous/preplish/blob/main/step003-preplish-opt.gif)
 
-### Project Status: Active
 
 ## Features:
 * you can start the REPL and add valid Perl statements line-by-line
