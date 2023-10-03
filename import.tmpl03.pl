@@ -4,7 +4,7 @@ use warnings;
 use feature 'say';
 use Data::Dumper;
 use Digest::SHA qw(sha256_hex);
-use Scalar::Util qw(looks_like_number);
+use Scalar::Util qw(looks_like_number blessed);
 use Time::Local qw( timelocal_posix );
 use ExtUtils::Installed;
 use List::Util qw( 
@@ -323,7 +323,7 @@ package cMatrix { #matrix object
 	$obj->showDocu; 
 	return $obj;
 	}
-	sub	showDocu { my $p=shift; if( $gdAppParms{appVerbose} > 0 ){ say "This is a " . $p->{type} . "object. Use method importFileData to add data."; } }
+	sub	showDocu { my $p=shift; if( $gdAppParms{appVerbose} > 0 ){ say "This is a " . $p->{type} . " object. Use method importFileData to add data."; } }
 	sub head { my $sdoc="Show first n rows";
 		my ($p, $n)=@_;
 		if(! defined($n)){ $n=5; } 
@@ -614,7 +614,7 @@ package cMatrix { #matrix object
 	 my ($p,$rowwant)=@_; #n is the human non-zero index 
 	 my $marf=$p->{amain}; 
 	 if(! ::numtest($rowwant) || $rowwant <= 0 || $rowwant > scalar(@$marf) ) { say $p->{uic}." \"$rowwant\" not found"; }
-	 else { my $rarf= $marf->[$rowwant-1] ; say $p->{uic}." \"$rowwant\"\n" . join(" ;; ", @$rarf); }
+	 else { my $rarf= $marf->[$rowwant-1] ; my $fc=1; say $p->{uic}." \"$rowwant\"\n" . join(" ;; ", map {"[".$fc++."] ".$_} @$rarf); }
 	}
 	sub shwCol { my $sdoc="shows column n";
 		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
@@ -688,7 +688,7 @@ package cMatrix { #matrix object
 	
 
 	
-	sub srtMtxByCol { my $sdoc="sort matrix by column (int)";
+	sub srtMtxByCol { my $sdoc="sort matrix by column (nth). 0|1 asc|des";
 		my ($p,$colwant,$bSort)= @_; my $marf=$p->{amain}; 
 		
 		my $carf=$p->getColsArf;
@@ -717,8 +717,12 @@ package cMatrix { #matrix object
 		
 		my @aNewRowSigOrd=();
 		
-		if($srtType==0) { @aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$a}<=>$dSigtoVal{$b} } keys %dSigtoVal; }
-		elsif($srtType==1) { @aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$b}<=>$dSigtoVal{$a} } keys %dSigtoVal; }
+		if($srtType==0) { 
+			@aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$a}<=>$dSigtoVal{$b} } keys %dSigtoVal; 
+		}
+		elsif($srtType==1) { 
+			@aNewRowSigOrd= map { $_ } sort { $dSigtoVal{$b}<=>$dSigtoVal{$a} } keys %dSigtoVal; 
+		}
 				
 		
 		for my $RSIG (@aNewRowSigOrd){
@@ -731,8 +735,8 @@ package cMatrix { #matrix object
 	
 	sub mulxVuntilXYcond { my $p=shift; my $sdoc="ToDo: document"; $p->msgWIP(); }		
 	
-	sub delFrstRow { my $p=shift; my $marf=$p->{amain}; if( $p->bIsEmpty ) { return; } my $darf=shift @$marf; say "Deleted first row : ". join(" _ ", @$darf); }
-	sub delLastRow { my $p=shift; my $marf=$p->{amain}; if( $p->bIsEmpty ) { return; } my $darf=pop @$marf; say "Deleted last row : ". join(" _ ", @$darf); }		
+	sub delFrstRow { my $p=shift; my $marf=$p->{amain}; if( $p->bIsEmpty ) { return; } $p->delRow(1);  }
+	sub delLastRow { my $p=shift; my $marf=$p->{amain}; if( $p->bIsEmpty ) { return; } $p->delRow(scalar(@$marf)); }		
 	sub delRow { my $sdoc="Delete row i";
 		my ($p,$idxD)=@_; my $marf=$p->{amain}; my @aRV=(); 
 		while ( my ($idx,$arf)=each @$marf ){ 
@@ -811,7 +815,30 @@ package cMatrix { #matrix object
 		$p->shape(); say '='x13; 
 	}
 
+	sub cloneCol {
+		my ($p,$colN)=@_;
+		my $carf=$p->getCol($colN);
+		$p->addCol($carf);
+	}
+	
+	sub cnvColToNum { #strip non-num chars, assign 0 where the result is invalid
+		my ($p,$colN)=@_;
+		my @aCnvCol=();
+		my $cntCNV=0;
+		my $carf=$p->getCol($colN);
+		for my $iv (@$carf){ 
+			if($iv =~ /\D+/ ){ #|| ! ::numtest($iv) ) { 
+				$iv =~ tr/0-9.-//cd; $cntCNV++; 
+			} 
+			push @aCnvCol, $iv;
+		}
+		$p->addCol(\@aCnvCol);
+		#$p->swapColToPos($p->getWidth , $colN); #TODO delete after swap
+		say "cnvColToNum done ($cntCNV converted)"; 
+	}
+
 	sub importFileData { my $sdoc="data = rows of comma-separated values";
+		
 		say $sdoc;  
 		my ($p,$fname)=@_; 
 		if ( ! -e $fname ) { say "$fname not found."; return; }
@@ -827,10 +854,20 @@ package cMatrix { #matrix object
 			elsif( $p->{width}!= scalar(@aPcs) ){ say "import warning, row $idx"; }		
 			push @$marf,\@aPcs; 
 		}
-		say "Import statistics"; 
-		for my $k (sort { $a<=>$b} keys %dStats){ 
-			say "Length $k=".scalar( @{$dStats{$k}} ); 
+		
+		my @aValsToAvg=();
+		for my $k (sort { $a<=>$b} keys %dStats){
+			push @aValsToAvg , scalar( @{$dStats{$k}} );
+		} 
+		my $avgVal=::mathGetIntegral(::computeMean(\@aValsToAvg));
+		 
+		say "Import statistics (average segments=$avgVal)"; 
+		for my $k (sort { $a<=>$b} keys %dStats){
+			my $LNG=scalar( @{$dStats{$k}} );
+			if($LNG==$avgVal) { print "Length $k=".scalar( @{$dStats{$k}} )." "; }
+			else{ say "\n".'x'x20 . "> Length $k $LNG != avg $avgVal"; } 
 		}
+		$p->shwRow(1);
 	 }
 
 };
@@ -869,6 +906,18 @@ sub getSHA { my $arg=shift; return sha256_hex($arg); }
 sub getEntropyVal { my $rv=$giENTRPY; $giENTRPY++; return $rv; }
 sub numtest { my $n=shift; my $rv=0; if(looks_like_number($n)){ $rv=1; } return $rv; }
 sub bAreAllNumbers { my $arf; my $nint=0; my $bRV=0; map { $nint++ if(! numtest($_) ) } @$arf; $nint > 0 ? $bRV=0 : $bRV=1; return $bRV; }  
+sub sortArfAscDes {
+	my ($arf , $mode)=@_; # 0 asc 1 desc
+	$mode = 0 if(! defined $mode);
+	my @aRV=();
+	if( bAreAllNumbers($arf) ){ 
+		if( $mode==0 ) { @aRV = sort { $a<=>$b } @$arf; } 
+		else { @aRV = sort { $b<=>$a } @$arf; } }
+	else { 
+		if( $mode==0 ) { @aRV = sort {"\L$a" cmp "\L$b"} @$arf; } 
+		else { @aRV = sort {"\L$b" cmp "\L$a"} @$arf; } }
+	return \@aRV; 
+}
 sub addDictKeyIfNot { my $sdoc="Add/update key to dict of arrays";
 	my ($hrf,$key,$val)=@_;				
 	if( exists $hrf->{$key}) { my $arf=$hrf->{$key}; push @$arf, $val; }
@@ -902,10 +951,19 @@ sub doArgTest02 {
 	unshift @ary, mksqbracks(__LINE__); unshift @ary, "doArgTest02"; doMsgArf(\@ary);
 }
 sub gettypeinfo { 
-	my $var=shift; 
-	if(ref($var)) { say "ref $var of type ". ref($var);  }
-	elsif(looks_like_number($var)) { say "$var of type number";  }
-	else { say Dumper ($var); } 
+	my ($var, $hint)=@_; #hint based on string match of sigil # 0=UNK , 1=SCALAR, 2=ARRAY , 3=DICT , 4=REF
+	my %dRV=( bSuccess=>0 , type=>0 , msg=>"none"); # 0=UNK , 1=SCALAR, 2=ARRAY , 3=DICT , 4=REF
+	if(! ref($var)) { 
+		$dRV{bSuccess}=1; $dRV{type}=1; $dRV{msg}="scalar $var ";  
+		$dRV{msg}.=" numeric" if(looks_like_number($var)); 
+		$dRV{msg}.=" hint=$hint"; 
+	}
+	elsif(ref($var)) {  
+		$dRV{bSuccess}=1; $dRV{type}=4; $dRV{msg}="ref $var\n".encode_json $var;  
+	}
+	else { $dRV{msg}=encode_json $var; }
+	#else { say Dumper ($var); }
+	return \%dRV; 
 }	
 sub dec2hex { my $d=shift; return sprintf( "%x" , $d ); }
 sub padint { my $i=shift; if ($i<10){ return "  ".$i;} elsif ( $i < 100) { return " ".$i} else {return $i;} }

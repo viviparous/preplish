@@ -887,7 +887,7 @@ do
 		bEvalLast=0
 		lside=-1
 		lastline=$(tail -n 1 $tmpfile)
-		if ! echo "$lastline" | grep -q "==" && ! echo "$lastline" |  grep -q "!=" && ! echo "$lastline" | grep -q ">=" && ! echo "$lastline" | grep -q "<=" && echo "$lastline" | grep -q "=" ; then
+		if ! echo "$lastline" | grep -q -P "^ *for |^ *while *\(" && ! echo "$lastline" | grep -q "==" && ! echo "$lastline" |  grep -q "!=" && ! echo "$lastline" | grep -q ">=" && ! echo "$lastline" | grep -q "<=" && echo "$lastline" | grep -q "=" ; then
 		 #lside=$(echo $lastline | perl -lne 'my $v=$_; my $rv=0; my $xEQ=index($v, "="); my $s1=substr($v,0,$xEQ-1); if(  $s1 !~ /[{}()]/  && ! m/==/ && m/[^!><+-]=/ ){ m/(\S+)=/; $rv=$1; } print $rv; ' )
 		 lside=$(echo $lastline | awk -F'=' '{print $1}' | awk '{print $NF}')		 
 		 #echo "$LINENO dbg: $lside"
@@ -908,16 +908,21 @@ do
 			dctregex="^[[:space:]]*\%"
 			aryregex="^[[:space:]]*\@"
 			scrfregex="^[[:space:]]*\$"			
-			echo "use JSON;" >> $scratchfile
+			echo "use JSON::PP;" >> $scratchfile
+			echo "use Scalar::Util qw( blessed );" >> $scratchfile
+
 			if [[ $lside =~ $dctregex ||  $lside =~ $aryregex ]];
 			then
 				echo "my \$jsonval=encode_json \\$lside;" >> $scratchfile
 				echo "say \$jsonval;" >> $scratchfile				 
 				echo "say decode_json \$jsonval;" >> $scratchfile
 			else
-				echo "my \$jsonval=encode_json $lside; " >> $scratchfile
+				#defined blessed $thing && blessed $thing eq __PACKAGE__
+				echo "if( defined blessed $lside ) { say  \"$lside is an object\"; }" >> $scratchfile
+				echo "else {" >> $scratchfile
+				echo "my \$jsonval=encode_json $lside; " >> $scratchfile				
 				echo "if(ref($lside)){ say \$jsonval; say decode_json \$jsonval; }" >> $scratchfile 
-				echo "else{ say \$jsonval; }" >> $scratchfile 
+				echo "else{ say \$jsonval; } }" >> $scratchfile 
 			fi
 				
 		  fi
@@ -954,3 +959,4 @@ totalTmMins=$( awk -v v1="$totalTmSecs" -v v2=60 'BEGIN {OFMT="%.3f"; print (v1 
 
 echo "Statistics: iStatements=$userLoops ;; editTime=$totalTmMins m"
 echo "Work saved in file $tmpfile"
+
