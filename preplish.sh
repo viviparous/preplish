@@ -887,7 +887,7 @@ do
 		bEvalLast=0
 		lside=-1
 		lastline=$(tail -n 1 $tmpfile)
-		if ! echo "$lastline" | grep -q -P "^ *for |^ *while *\(" && ! echo "$lastline" | grep -q "==" && ! echo "$lastline" |  grep -q "!=" && ! echo "$lastline" | grep -q ">=" && ! echo "$lastline" | grep -q "<=" && echo "$lastline" | grep -q "=" ; then
+		if ! echo "$lastline" | grep -q -P "^#|^ *for |^ *while *\(" && ! echo "$lastline" | grep -q "==" && ! echo "$lastline" |  grep -q "!=" && ! echo "$lastline" | grep -q ">=" && ! echo "$lastline" | grep -q "<=" && echo "$lastline" | grep -q "=" ; then
 		 #lside=$(echo $lastline | perl -lne 'my $v=$_; my $rv=0; my $xEQ=index($v, "="); my $s1=substr($v,0,$xEQ-1); if(  $s1 !~ /[{}()]/  && ! m/==/ && m/[^!><+-]=/ ){ m/(\S+)=/; $rv=$1; } print $rv; ' )
 		 lside=$(echo $lastline | awk -F'=' '{print $1}' | awk '{print $NF}')		 
 		 #echo "$LINENO dbg: $lside"
