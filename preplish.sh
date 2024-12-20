@@ -2,7 +2,7 @@
 
 #TODO:  
 #highlight string in code
-#create modes: mode1=coding; mode2=querying
+#create modes, as in vi: mode1=coding; mode2=querying
 #import lines (not whole file) from scratchfile or from cmdhistory
 #append file , check after append
 #before run, append $file as  __DATA__ 
@@ -102,6 +102,7 @@ dcmdhelp[cmdhelpd]="cmdhelpd "			#show description for a cmdword
 dcmdhelp[cmdexit]=cmdexit				#exit,quit
 dcmdhelp[cmdquit]=cmdquit				#exit,quit
 dcmdhelp[cmdlist]=cmdlist				#show input history
+dcmdhelp[cmdhist]=cmdhist				#show bash input history
 dcmdhelp[cmdlsdir]=cmdlsdir				#ls dir
 dcmdhelp[cmdimport]="cmdimport "		#import a file
 dcmdhelp[cmdrunfwargs]="cmdrunfwargs "	#run a specific function with arguments
@@ -161,6 +162,10 @@ function showhelpdataops () {
 	
 }
 
+function showhistorybash () {
+	coloursyntax $0_cmds	
+}
+
 function showhistory () {
 
 	for i in ${!cmdhistory[@]}; do
@@ -180,6 +185,13 @@ function cleartmpfiles {
 	done
 
 
+}
+
+function mkheader {	
+sep="============================================================"	
+echo $sep | sed -e 's/[=]/\x1b[1;33;01m&\x1b[m/ig'
+echo $1
+echo $sep | sed -e 's/[=]/\x1b[1;33;01m&\x1b[m/ig'
 }
 
 function mkdts {
@@ -248,7 +260,7 @@ function coloursyntax {
   perltidy -st $1 | cat -n > $ofile
  fi
 
- cat $ofile | sed -e 's/[\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\/\\{}#=]/\x1b[1;31;01m&\x1b[m/ig' | perl -pe  's/(while |use |sub |if |else )/\e[1;34m\1\033[0m/g'
+ cat $ofile | sed -e 's/[;\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\/\\{}:#=]/\x1b[1;31;01m&\x1b[m/ig' | perl -pe  's/(while |use |sub |if |else |role |class )/\e[1;34m\1\033[0m/g'
  rm $ofile
 }
 
@@ -261,8 +273,8 @@ function msgincolour {
 }
 
 function msglinesyntax {
-
-echo $1 | sed -e 's/[\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\/\\{}#=]/\x1b[1;31;01m&\x1b[m/ig' | perl -pe  's/(package |while |use |sub |if |else )/\e[1;34m\1\033[0m/g'
+#include numbers in highlight
+echo $1 | sed -e 's/[[:digit:]]/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\%()~]\w*/\x1b[1;33;01m&\x1b[m/ig' -e 's/[\$\@()~]\w*/\x1b[1;36;01m&\x1b[m/ig' -e 's/[\/\\{}#=]/\x1b[1;31;01m&\x1b[m/ig' | perl -pe  's/(package |while |use |sub |if |else )/\e[1;34m\1\033[0m/g'
 
 }
 
@@ -307,7 +319,7 @@ function appendSubToSubrFile () {
 	cat -n $ofile
 	
 	dtscmt=$( mkdts )
-	echo -e "\n### subroutine $dtscmt \n" >> $ofile 
+	echo -e "\n### staged $dtscmt \n" >> $ofile 
 	
 	for i in "${aSubrForL[@]}"; do
 	  echo "$i" >> $ofile
@@ -347,6 +359,10 @@ function bFileIsValid () {
 
 
 
+# # # START MAIN
+
+mkheader "This is $0 , a Perl REPL in Bash."
+
 includefile="import.tmpl01.txt"
 if [[ -e $includefile ]]; 
 then 
@@ -365,12 +381,10 @@ then
 	fi
  
 else
- msgincolour "No auto-import file $includefile found."
+ msgincolour "No auto-import file $includefile found. (Create one if you want to import code at start.)"
+ msgincolour "Use cmdimport <filename> to import an existing template."
 fi
 
-
-
-# # # START MAIN
 
 
 echo -e "\e[32m"
@@ -392,10 +406,14 @@ do
 	history -s "$codeline"
 	
 
-	subregex="^[[:space:]]*sub "
-	forregex="^[[:space:]]*for my "
-	whlregex="^[[:space:]]*while \( [^[:space:]]+ "
-	whleachregex="^[[:space:]]*while \( my \( [^[:space:]]+,[^[:space:]]+ )[[:space:]]*=[[:space:]]*each [^[:space:]]+ {"
+	subregex="^[[:space:]]*sub [^[:space:]]+[[:space:]]*\{[[:space:]]*"
+	forregex="^[[:space:]]*for my [^[:space:]]+ "
+	whlregex="^[[:space:]]*while \([[:space:]]*[^[:space:]]+ "
+	#PERLsyntax: while ( my ($idx,$val)=each @ary ) {
+	whleachregex="^[[:space:]]*while \( my \([[:space:]]*[^[:space:]]+,[^[:space:]]+[[:space:]]*)[[:space:]]*=[[:space:]]*each [^[:space:]]+[[:space:]]*)[[:space:]]*\{[[:space:]]*"
+	#PERLsyntax: role rROLE { 
+	roleregex="^[[:space:]]*role [[:space:]]*[^[:space:]]+[[:space:]]*\{[[:space:]]*"
+	classregex="^[[:space:]]*class [[:space:]]*[^[:space:]]+[[:space:]]*\{[[:space:]]*"
 	podopnregex="^=pod"
 	podendregex="^=cut"
 
@@ -423,13 +441,18 @@ do
 
 		if [ "$frv" -eq 1 ]; then
 		 cp $scratchfile $tmpfile
-		 #fix bug, repeated entry on success
-		 #appendSubToSubrFile
+		 #success, no need to call appendSubToSubrFile
 		 unset aSubrForL 
 		else
-		 msgincolour "Invalid code, discarding..."
-		 listCurrSubrForL
-		 unset aSubrForL 
+		 msgincolour "Error, code did not compile..."
+		 iLenSubBlock=${#aSubrForL[@]}
+		 if [[ $iLenSubBlock -gt 0 ]]; 
+		  then
+			listCurrSubrForL
+			msgincolour "Multiline block shown, discarded."
+		 fi
+		 unset aSubrForL
+		  
 		fi
 		continue
 		
@@ -445,28 +468,35 @@ do
 
 	### END POD MODE
 
-	### BEGIN SUBFORWHILE MODE
-#	 if creating a subroutine or loop
-	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whleachregex || $codeline =~ $whlregex ) && ! $codeline =~ }\ *$ && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
+
+	### BEGIN CAPTURE, SUB-FOR-WHILE-ROLE-CLASS MODE
+#	 if creating a subroutine, loop, role, class AND ${dcntrlMode[cmSubrForL]} -eq 0
+	 if [[ ( $codeline =~ $subregex || $codeline =~ $forregex || $codeline =~ $whleachregex || $codeline =~ $whlregex || $codeline =~ $roleregex || $codeline =~ $classregex ) && ! $codeline =~ }\ *$ && ${dcntrlMode[cmSubrForL]} -eq 0 ]];
 
 	 then 
-		if [[ $codeline =~ $subregex ]]; 
+		if [[ $codeline =~ $subregex || $codeline =~ $roleregex || $codeline =~ $classregex ]]; #DOCU _ capture only these structures 
 		then 
 		 dcntrlMode[bIsSubNotForL]=1
-		else
+
+		elif [[ $codeline =~ $forregex || $codeline =~ $whleachregex || $codeline =~ $whlregex ]]; #DOCU _ no capture IF-FOR-WHILE mode
+		then 
 		 dcntrlMode[bIsSubNotForL]=0
+		else
+		 echo "DBG: Unexpected branch at $0 , $LINENO"
 		fi
-		
-		msgincolour "Received scope marker $codeline ,  add line with only }## to complete"
+	
+		#in all these use-cases ;; clear previous capture lines
+		unset aSubrForL 
+		msgincolour "Received multiline scope-marker in $codeline ,  add line with only }## to complete"
 		dcntrlMode[cmSubrForL]=1
 		aSubrForL+=("$codeline")
-		listCurrSubrForL
+		listCurrSubrForL	
 		continue
 
 #	 elif [[ $codeline =~ ^}$ || $codeline =~ ^}# ]];
-	 elif [[ $codeline =~ ^}##$ ]];
+	 elif [[ $codeline =~ ^}##[[:space:]]*$ ]];
 	 then 
-		msgincolour "Received end of multiline sub/loop marker $codeline"
+		msgincolour "Received end of multiline scope-marker for $codeline"
 		dcntrlMode[cmSubrForL]=0
 		aSubrForL+=("$codeline")
 		listCurrSubrForL
@@ -482,22 +512,29 @@ do
 		 fi
 		 
 		else
-		 msgincolour "Invalid code, discarding..."
-		 listCurrSubrForL
-		 unset aSubrForL 
+		
+		 msgincolour "Error, code did not compile..."
+		 iLenSubBlock=${#aSubrForL[@]}
+		 if [[ $iLenSubBlock -gt 0 ]]; 
+		  then
+			listCurrSubrForL
+			msgincolour "Multiline block shown, discarded."
+		 fi
+		 unset aSubrForL
+		
 		fi
 		continue
 		
 	 elif [[ ${dcntrlMode[cmSubrForL]} -eq 1 ]];
 	 then
-		msgincolour "(Continue inside sub or for loop... No syntax-check until you complete the scope. Add line with only }## to complete the scope.)"
+		msgincolour "(Continue inside multiline structure... No syntax-check until you complete the scope. Add line with only }## to complete the scope.)"
 		sleep 1
 		aSubrForL+=(" $codeline")
 		listCurrSubrForL
 		
 		continue
 	 fi
-	### END SUBFORWHILE MODE
+	### END MULTILINE MODE
 
 	### BEGIN CMD and CODE MODE
 	 if [[ ${dcmdhelp[cmdquit]} == $codeline || ${dcmdhelp[cmdexit]} == $codeline ]];
@@ -512,6 +549,10 @@ do
 	elif [[ ${dcmdhelp[cmdlist]} == $codeline ]];
 	 then
 		showhistory
+		continue
+	elif [[ ${dcmdhelp[cmdhist]} == $codeline ]];
+	 then
+		showhistorybash
 		continue
 	elif [[ ${dcmdhelp[cmddatatog]} == $codeline ]];
 	 then
@@ -794,7 +835,7 @@ do
 				if [ $? -eq 0 ]
 				 then
 				  cp $scratchfile $tmpfile
-				  echo "Imported $fname"
+				  echo "Imported $fname (type cmdshowc to see the code)"
 
 				else 
 				 echo "Did not import $fname"
@@ -927,7 +968,9 @@ do
 				
 		  fi
 		  perl -I . $scratchfile
-		  if [[ $bEvalLast -eq 1 ]]; then echo "assigned lvalue: $lside , name length $varlen" ; fi		  
+		  if [[ $bEvalLast -eq 1 ]]; then 
+			msglinesyntax "assigned lvalue: $lside , name length $varlen" ; 
+		  fi		  
 		 
 		 elif [[ $bEvalLast -eq 1 ]]; then 
 		  #copy main file to tmp, append perl evaluation statement; tail -n 1 the output		 
